@@ -31,76 +31,39 @@ import CRM_OS from './components/CRM_OS';
 import AdminOS from './components/AdminOS';
 import RegulatoryOS from './components/RegulatoryOS';
 
-import { 
-  DEPARTMENTS, ROLES, EMPLOYEES, CUSTOMERS, SUPPLIERS, PRODUCTS, MATERIALS, 
-  FORMULAS, MACHINES, MANUFACTURING_ORDERS, REPAIR_TICKETS, PM_TASKS, SPARE_PARTS, 
-  ATTENDANCE, LEAVE_REQUESTS, OT_REQUESTS, PAYROLL_PERIODS, PAYSLIPS, TRANSACTIONS, 
-  INVOICES, SUPPLIER_BILLS, AUDIT_LOGS, GOODS_RECEIPTS, PURCHASE_ORDERS, 
-  PURCHASE_REQUESTS, QC_INSPECTIONS
-} from './data/mockFactoryData';
-
+// No mock data imports - purely connected to database state
 const INITIAL_DB_STATE = {
-  departments: DEPARTMENTS,
-  roles: ROLES,
-  employees: EMPLOYEES,
-  customers: CUSTOMERS,
-  suppliers: SUPPLIERS,
-  products: PRODUCTS,
-  materials: MATERIALS,
-  formulas: FORMULAS,
-  machines: MACHINES,
-  manufacturingOrders: MANUFACTURING_ORDERS,
-  purchaseRequests: PURCHASE_REQUESTS,
-  purchaseOrders: PURCHASE_ORDERS,
-  goodsReceipts: GOODS_RECEIPTS,
-  qcInspections: QC_INSPECTIONS,
-  repairTickets: REPAIR_TICKETS,
-  pmTasks: PM_TASKS,
-  spareParts: SPARE_PARTS,
-  attendance: ATTENDANCE,
-  leaveRequests: LEAVE_REQUESTS,
-  otRequests: OT_REQUESTS,
-  payrollPeriods: PAYROLL_PERIODS,
-  payslips: PAYSLIPS,
-  transactions: TRANSACTIONS,
-  invoices: INVOICES,
-  supplierBills: SUPPLIER_BILLS,
-  bills: SUPPLIER_BILLS,
-  coa: [
-    { code: '1010', name: 'Cash on Hand / Industrial Treasury', type: 'Asset', balance: 450000, id: 'coa-1010' },
-    { code: '1020', name: 'Raw Material Inventory Capitalized', type: 'Asset', balance: 185000, id: 'coa-1020' },
-    { code: '1030', name: 'Accounts Receivable (A/R Ledger)', type: 'Asset', balance: 163000, id: 'coa-1030' },
-    { code: '2010', name: 'Accounts Payable Accrued (A/P)', type: 'Liability', balance: 15800, id: 'coa-2010' },
-    { code: '3010', name: 'Corporate Retained Earnings Capital', type: 'Equity', balance: 350000, id: 'coa-3010' },
-    { code: '4010', name: 'Wholesale Factory Product Sales Revenue', type: 'Revenue', balance: 512500, id: 'coa-4010' },
-    { code: '5010', name: 'Direct Plant Wages & Labor Expenses', type: 'Expense', balance: 150700, id: 'coa-5010' },
-    { code: '5020', name: 'Machinery Overhaul & Corrective PM OPEX', type: 'Expense', balance: 14200, id: 'coa-5020' },
-    { code: '5030', name: 'Direct Raw Material Procurement OPEX', type: 'Expense', balance: 60500, id: 'coa-5030' }
-  ],
-  journals: [
-    {
-      id: 'jn-001',
-      memo: 'Raw material inventory asset adjustment',
-      date: '2026-05-01',
-      lines: [
-        { accountCode: '1020', type: 'Debit', amount: 185000 },
-        { accountCode: '3010', type: 'Credit', amount: 185000 }
-      ]
-    },
-    {
-      id: 'jn-002',
-      memo: 'May 2026 plant wages ledger allocation',
-      date: '2026-05-28',
-      lines: [
-        { accountCode: '5010', type: 'Debit', amount: 150700 },
-        { accountCode: '1010', type: 'Credit', amount: 150700 }
-      ]
-    }
-  ],
-  auditLogs: AUDIT_LOGS,
+  departments: [],
+  roles: [],
+  employees: [],
+  customers: [],
+  suppliers: [],
+  products: [],
+  materials: [],
+  formulas: [],
+  machines: [],
+  manufacturingOrders: [],
+  purchaseRequests: [],
+  purchaseOrders: [],
+  goodsReceipts: [],
+  qcInspections: [],
+  repairTickets: [],
+  pmTasks: [],
+  spareParts: [],
+  attendance: [],
+  leaveRequests: [],
+  otRequests: [],
+  payrollPeriods: [],
+  payslips: [],
+  transactions: [],
+  invoices: [],
+  supplierBills: [],
+  bills: [],
+  coa: [],
+  journals: [],
+  auditLogs: [],
   notifications: [
-    { id: 'n-1', message: 'Welcome to IDEVA Cosmetic Factory OS v2.0 - System Boot Completed', severity: 'info', createdAt: new Date().toISOString() },
-    { id: 'n-2', message: 'Alert: Active chemical stock Glycerin is below core safety levels. Purchase Request triggered.', severity: 'warning', createdAt: new Date().toISOString() }
+    { id: 'n-1', message: 'Welcome to IDEVA Cosmetic Factory OS v2.0 - System Boot Completed', severity: 'info', createdAt: new Date().toISOString() }
   ]
 };
 
@@ -287,7 +250,7 @@ export default function App() {
   
   const netEarnings = totalRevenues - totalOperatingExpenses;
   
-  const unrestrictedStockPercent = dbState.materials
+  const unrestrictedStockPercent = dbState.materials && dbState.materials.length > 0
     ? Math.round((dbState.materials.filter((m: any) => m.stockLevel >= m.minStock).length / dbState.materials.length) * 100)
     : 100;
 

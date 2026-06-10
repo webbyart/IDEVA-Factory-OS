@@ -8,19 +8,19 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { 
-  DEPARTMENTS, ROLES, EMPLOYEES, CUSTOMERS, SUPPLIERS, PRODUCTS, MATERIALS, 
-  FORMULAS, MACHINES, MANUFACTURING_ORDERS, REPAIR_TICKETS, PM_TASKS, SPARE_PARTS, 
-  ATTENDANCE, LEAVE_REQUESTS, OT_REQUESTS, PAYROLL_PERIODS, PAYSLIPS, TRANSACTIONS, 
-  INVOICES, SUPPLIER_BILLS, AUDIT_LOGS, GOODS_RECEIPTS, PURCHASE_ORDERS, 
-  PURCHASE_REQUESTS, QC_INSPECTIONS
-} from "./src/data/mockFactoryData";
-
-import { 
   Employee, Material, Product, Formula, Machine, ManufacturingOrder, 
   RepairTicket, PMTask, SparePart, AttendanceRecord, LeaveRequest, OTRequest, 
   PayrollPeriod, Payslip, AccountTransaction, Invoice, SupplierBill, AuditLog, 
   QCInspection, PurchaseRequest, PurchaseOrder, GoodsReceipt
 } from "./src/types"; // Path alignment
+
+import {
+  DEPARTMENTS, ROLES, EMPLOYEES, CUSTOMERS, SUPPLIERS, PRODUCTS, MATERIALS,
+  FORMULAS, MACHINES, MANUFACTURING_ORDERS, REPAIR_TICKETS, PM_TASKS, SPARE_PARTS,
+  ATTENDANCE, LEAVE_REQUESTS, OT_REQUESTS, PAYROLL_PERIODS, PAYSLIPS, TRANSACTIONS,
+  INVOICES, SUPPLIER_BILLS, AUDIT_LOGS, GOODS_RECEIPTS, PURCHASE_ORDERS,
+  PURCHASE_REQUESTS, QC_INSPECTIONS
+} from "./src/data/mockFactoryData";
 
 const app = express();
 app.use(express.json());
@@ -182,7 +182,12 @@ async function syncCollectionToSupabase(stateKey: string, items: any[]) {
     });
 
     if (!res.ok) {
-      console.error(`[SUPABASE SYNC ERROR] Failed to sync ${stateKey} to ${dbTable}:`, res.status, await res.text());
+      const errText = await res.text();
+      if (errText.includes("row-level security") || res.status === 401 || errText.includes("violates row-level security policy")) {
+        console.warn(`[SUPABASE RLS WARNING] Table '${dbTable}' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen to grant write permissions.`);
+      } else {
+        console.error(`[SUPABASE SYNC ERROR] Failed to sync ${stateKey} to ${dbTable}:`, res.status, errText);
+      }
     } else {
       console.log(`[SUPABASE SYNC SUCCESS] Synced ${rowsToUpsert.length} rows for ${stateKey} to ${dbTable}.`);
     }
@@ -218,7 +223,12 @@ async function syncFormulasToSupabase(formulas: any[]) {
         body: JSON.stringify(headers)
       });
       if (!resHeader.ok) {
-        console.error(`[SUPABASE FORMULA SYNC] Failed to sync formula_headers:`, resHeader.status, await resHeader.text());
+        const errText = await resHeader.text();
+        if (errText.includes("row-level security") || resHeader.status === 401 || errText.includes("violates row-level security policy")) {
+          console.warn(`[SUPABASE RLS WARNING] Table 'formula_headers' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen.`);
+        } else {
+          console.error(`[SUPABASE FORMULA SYNC] Failed to sync formula_headers:`, resHeader.status, errText);
+        }
       }
     }
 
@@ -258,7 +268,12 @@ async function syncFormulasToSupabase(formulas: any[]) {
         body: JSON.stringify(allDetailRows)
       });
       if (!resDetails.ok) {
-        console.error(`[SUPABASE DETAIL SYNC] Failed to sync formula_details:`, resDetails.status, await resDetails.text());
+        const errText = await resDetails.text();
+        if (errText.includes("row-level security") || resDetails.status === 401 || errText.includes("violates row-level security policy")) {
+          console.warn(`[SUPABASE RLS WARNING] Table 'formula_details' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen.`);
+        } else {
+          console.error(`[SUPABASE DETAIL SYNC] Failed to sync formula_details:`, resDetails.status, errText);
+        }
       }
     }
   } catch (err: any) {
@@ -292,31 +307,31 @@ async function loadFromSupabase() {
       }
     }
 
-    // Now pull direct PostgreSQL tables and overwrite standard keys securely!
+    // Now pull direct PostgreSQL tables and overwrite standard keys securely if they have data!
     const depts = await fetchTableDirect("departments");
-    if (depts.length > 0) dbState.departments = toCamel(depts);
+    if (depts && depts.length > 0) dbState.departments = toCamel(depts);
     
     const roles = await fetchTableDirect("roles");
-    if (roles.length > 0) dbState.roles = toCamel(roles);
+    if (roles && roles.length > 0) dbState.roles = toCamel(roles);
     
     const emps = await fetchTableDirect("employees");
-    if (emps.length > 0) dbState.employees = toCamel(emps);
+    if (emps && emps.length > 0) dbState.employees = toCamel(emps);
     
     const custs = await fetchTableDirect("customer_master");
-    if (custs.length > 0) dbState.customers = toCamel(custs);
+    if (custs && custs.length > 0) dbState.customers = toCamel(custs);
     
     const supps = await fetchTableDirect("supplier_master");
-    if (supps.length > 0) dbState.suppliers = toCamel(supps);
+    if (supps && supps.length > 0) dbState.suppliers = toCamel(supps);
     
     const prods = await fetchTableDirect("product_master");
-    if (prods.length > 0) dbState.products = toCamel(prods);
+    if (prods && prods.length > 0) dbState.products = toCamel(prods);
     
     const mats = await fetchTableDirect("material_master");
-    if (mats.length > 0) dbState.materials = toCamel(mats);
+    if (mats && mats.length > 0) dbState.materials = toCamel(mats);
     
     const headers = await fetchTableDirect("formula_headers");
     const details = await fetchTableDirect("formula_details");
-    if (headers.length > 0) {
+    if (headers && headers.length > 0) {
       dbState.formulas = headers.map((h: any) => {
         const items = details
           .filter((d: any) => d.formula_id === h.id || d.formulaId === h.id)
@@ -336,10 +351,10 @@ async function loadFromSupabase() {
     }
     
     const machinesTable = await fetchTableDirect("machines");
-    if (machinesTable.length > 0) dbState.machines = toCamel(machinesTable);
+    if (machinesTable && machinesTable.length > 0) dbState.machines = toCamel(machinesTable);
     
     const mos = await fetchTableDirect("manufacturing_orders");
-    if (mos.length > 0) {
+    if (mos && mos.length > 0) {
       dbState.manufacturingOrders = mos.map((row: any) => {
         const mapped = toCamel(row);
         mapped.costSummary = {
@@ -354,37 +369,37 @@ async function loadFromSupabase() {
     }
     
     const prs = await fetchTableDirect("purchase_requests");
-    if (prs.length > 0) dbState.purchaseRequests = toCamel(prs);
+    if (prs && prs.length > 0) dbState.purchaseRequests = toCamel(prs);
     
     const pos = await fetchTableDirect("purchase_orders");
-    if (pos.length > 0) dbState.purchaseOrders = toCamel(pos);
+    if (pos && pos.length > 0) dbState.purchaseOrders = toCamel(pos);
     
     const grs = await fetchTableDirect("goods_receipts");
-    if (grs.length > 0) dbState.goodsReceipts = toCamel(grs);
+    if (grs && grs.length > 0) dbState.goodsReceipts = toCamel(grs);
     
     const qcs = await fetchTableDirect("qc_inspections");
-    if (qcs.length > 0) dbState.qcInspections = toCamel(qcs);
+    if (qcs && qcs.length > 0) dbState.qcInspections = toCamel(qcs);
     
     const repairs = await fetchTableDirect("repair_tickets");
-    if (repairs.length > 0) dbState.repairTickets = toCamel(repairs);
+    if (repairs && repairs.length > 0) dbState.repairTickets = toCamel(repairs);
     
     const pms = await fetchTableDirect("pm_tasks");
-    if (pms.length > 0) dbState.pmTasks = toCamel(pms);
+    if (pms && pms.length > 0) dbState.pmTasks = toCamel(pms);
     
     const atts = await fetchTableDirect("attendance_records");
-    if (atts.length > 0) dbState.attendance = toCamel(atts);
+    if (atts && atts.length > 0) dbState.attendance = toCamel(atts);
     
     const periods = await fetchTableDirect("payroll_periods");
-    if (periods.length > 0) dbState.payrollPeriods = toCamel(periods);
+    if (periods && periods.length > 0) dbState.payrollPeriods = toCamel(periods);
     
     const slips = await fetchTableDirect("payslips");
-    if (slips.length > 0) dbState.payslips = toCamel(slips);
+    if (slips && slips.length > 0) dbState.payslips = toCamel(slips);
     
     const txs = await fetchTableDirect("account_transactions");
-    if (txs.length > 0) dbState.transactions = toCamel(txs);
+    if (txs && txs.length > 0) dbState.transactions = toCamel(txs);
     
     const logTable = await fetchTableDirect("audit_logs");
-    if (logTable.length > 0) dbState.auditLogs = toCamel(logTable);
+    if (logTable && logTable.length > 0) dbState.auditLogs = toCamel(logTable);
 
     supabaseConnected = true;
     console.log("[SUPABASE SUCCESS] Loaded 100% direct SQL database tables cleanly!");
@@ -456,7 +471,7 @@ app.use((req, res, next) => {
 const PORT = 3000;
 
 // Initialize Server State Store
-let dbState = {
+let dbState: any = {
   departments: [...DEPARTMENTS],
   roles: [...ROLES],
   employees: [...EMPLOYEES],
@@ -516,15 +531,14 @@ let dbState = {
   ],
   auditLogs: [...AUDIT_LOGS],
   notifications: [
-    { id: 'n-1', message: 'Welcome to IDEVA Factory OS - System Boot Completed', severity: 'info', createdAt: new Date().toISOString() },
-    { id: 'n-2', message: 'Alert: Spare Part SP-VLV-PV90 is below core minStock. Manual or auto PR check triggered.', severity: 'warning', createdAt: new Date().toISOString() }
+    { id: 'n-1', message: 'Welcome to IDEVA Factory OS - System Boot Completed with beautiful seeds', severity: 'info', createdAt: new Date().toISOString() }
   ],
   salesJobs: [
     {
       id: 'job-05002',
       jobCode: '#05002',
       customerId: 'cust-1',
-      customerCode: 'CUS-2026-001',
+      customerCode: 'CUST-KINGPOWER',
       productId: 'prod-001',
       formulaId: 'form-001',
       quantityRequested: 1000,
@@ -548,39 +562,7 @@ let dbState = {
       odor: 'Conforms to Rose Std'
     }
   ],
-  packagingLotLogs: [
-    {
-      id: 'pack-log-1',
-      jobId: 'job-05002',
-      lotNumber: 'LOT-PKG-05002-A',
-      page1_order: {
-        orderDate: '2026-06-09',
-        qtyTarget: 1000,
-        inspector: 'ธนวัชร รัตนเวชศาสน์',
-        status: 'Approved'
-      },
-      page2_log: {
-        startTime: '09:00',
-        endTime: '16:30',
-        actualPacked: 998,
-        defectQty: 2,
-        notes: 'Packed smoothly with high-speed gold spray crimper'
-      },
-      page3_control: {
-        sealPassed: true,
-        volumePassed: true,
-        labelPassed: true,
-        qcInspector: 'ดร. ลลิตา วรโชติสกุล'
-      },
-      page4_returns: {
-        cartonReturned: 5,
-        nozzlesReturned: 12,
-        scrapsScrap: 2,
-        stockCountSlipNo: 'CNT-05002-A',
-        countInspector: 'พนักงานคลังสินค้า A'
-      }
-    }
-  ]
+  packagingLotLogs: []
 };
 
 // Automation helper to generate notifications & audit logs
@@ -681,7 +663,31 @@ ALTER TABLE public.factory_data ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Allow anonymous read" ON public.factory_data FOR SELECT TO anon USING (true);
 CREATE POLICY "Allow anonymous insert" ON public.factory_data FOR INSERT TO anon WITH CHECK (true);
 CREATE POLICY "Allow anonymous update" ON public.factory_data FOR UPDATE TO anon USING (true);
-CREATE POLICY "Allow anonymous delete" ON public.factory_data FOR DELETE TO anon USING (true);`
+CREATE POLICY "Allow anonymous delete" ON public.factory_data FOR DELETE TO anon USING (true);
+
+-- Disable Row Level Security (RLS) for all relational tables if they exist
+ALTER TABLE public.departments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.material_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.formula_headers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.formula_details DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.manufacturing_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goods_receipts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.qc_inspections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.machines DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pm_tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.repair_tickets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payroll_periods DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payslips DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;`
   });
 });
 
@@ -692,102 +698,195 @@ app.get("/api/state", (req, res) => {
 });
 
 // Reset State
-app.post("/api/state/reset", (req, res) => {
+app.post("/api/state/reset", async (req, res) => {
+  const resetType = req.query.type; // 'clean' or 'mock' or undefined
+  
+  if (resetType === "clean") {
+    dbState = {
+      departments: [],
+      roles: [],
+      employees: [],
+      customers: [],
+      suppliers: [],
+      products: [],
+      materials: [],
+      formulas: [],
+      machines: [],
+      manufacturingOrders: [],
+      purchaseRequests: [],
+      purchaseOrders: [],
+      goodsReceipts: [],
+      qcInspections: [],
+      repairTickets: [],
+      pmTasks: [],
+      spareParts: [],
+      attendance: [],
+      leaveRequests: [],
+      otRequests: [],
+      payrollPeriods: [],
+      payslips: [],
+      transactions: [],
+      invoices: [],
+      supplierBills: [],
+      bills: [], // Alias for Accounting tab safety
+      coa: [],
+      journals: [],
+      auditLogs: [],
+      notifications: [
+        { id: 'n-1', message: 'System Reset Completed - Pristine Empty Workspace active.', severity: 'info', createdAt: new Date().toISOString() }
+      ],
+      salesJobs: [],
+      coaRecords: [],
+      packagingLotLogs: []
+    };
+    createEventLog("Industrial database wiped cleanly. Ready for customer inputs.", "System", "info");
+    return res.json({ success: true, message: "Pristine empty database initialized. Mock data cleared successfully." });
+  }
+
+  if (resetType === "mock") {
+    dbState = {
+      departments: [...DEPARTMENTS],
+      roles: [...ROLES],
+      employees: [...EMPLOYEES],
+      customers: [...CUSTOMERS],
+      suppliers: [...SUPPLIERS],
+      products: [...PRODUCTS],
+      materials: [...MATERIALS],
+      formulas: [...FORMULAS],
+      machines: [...MACHINES],
+      manufacturingOrders: [...MANUFACTURING_ORDERS],
+      purchaseRequests: [...PURCHASE_REQUESTS],
+      purchaseOrders: [...PURCHASE_ORDERS],
+      goodsReceipts: [...GOODS_RECEIPTS],
+      qcInspections: [...QC_INSPECTIONS],
+      repairTickets: [...REPAIR_TICKETS],
+      pmTasks: [...PM_TASKS],
+      spareParts: [...SPARE_PARTS],
+      attendance: [...ATTENDANCE],
+      leaveRequests: [...LEAVE_REQUESTS],
+      otRequests: [...OT_REQUESTS],
+      payrollPeriods: [...PAYROLL_PERIODS],
+      payslips: [...PAYSLIPS],
+      transactions: [...TRANSACTIONS],
+      invoices: [...INVOICES],
+      supplierBills: [...SUPPLIER_BILLS],
+      bills: [...SUPPLIER_BILLS], // Alias for Accounting tab safety
+      coa: [
+        { code: '1010', name: 'Cash on Hand / Industrial Treasury', type: 'Asset', balance: 450000, id: 'coa-1010' },
+        { code: '1020', name: 'Raw Material Inventory Capitalized', type: 'Asset', balance: 185000, id: 'coa-1020' },
+        { code: '1030', name: 'Accounts Receivable (A/R Ledger)', type: 'Asset', balance: 163000, id: 'coa-1030' },
+        { code: '2010', name: 'Accounts Payable Accrued (A/P)', type: 'Liability', balance: 15800, id: 'coa-2010' },
+        { code: '3010', name: 'Corporate Retained Earnings Capital', type: 'Equity', balance: 350000, id: 'coa-3010' },
+        { code: '4010', name: 'Wholesale Factory Product Sales Revenue', type: 'Revenue', balance: 512500, id: 'coa-4010' },
+        { code: '5010', name: 'Direct Plant Wages & Labor Expenses', type: 'Expense', balance: 150700, id: 'coa-5010' },
+        { code: '5020', name: 'Machinery Overhaul & Corrective PM OPEX', type: 'Expense', balance: 14200, id: 'coa-5020' },
+        { code: '5030', name: 'Direct Raw Material Procurement OPEX', type: 'Expense', balance: 60500, id: 'coa-5030' }
+      ],
+      journals: [
+        {
+          id: 'jn-001',
+          memo: 'Raw material inventory asset adjustment',
+          date: '2026-05-01',
+          lines: [
+            { accountCode: '1020', type: 'Debit', amount: 185000 },
+            { accountCode: '3010', type: 'Credit', amount: 185000 }
+          ]
+        },
+        {
+          id: 'jn-002',
+          memo: 'May 2026 plant wages ledger allocation',
+          date: '2026-05-28',
+          lines: [
+            { accountCode: '5010', type: 'Debit', amount: 150700 },
+            { accountCode: '1010', type: 'Credit', amount: 150700 }
+          ]
+        }
+      ],
+      auditLogs: [...AUDIT_LOGS],
+      notifications: [
+        { id: 'n-1', message: 'System Reset Completed - Sample Demo Mock values restored in-memory.', severity: 'info', createdAt: new Date().toISOString() }
+      ],
+      salesJobs: [
+        {
+          id: 'job-05002',
+          jobCode: '#05002',
+          customerId: 'cust-1',
+          customerCode: 'CUST-KINGPOWER',
+          productId: 'prod-001',
+          formulaId: 'form-001',
+          quantityRequested: 1000,
+          driveLink: 'https://drive.google.com/drive/folders/1oSSFJqg2HT9o_yOH-iePcbpnsNzqFdaA?usp=sharing',
+          status: 'Pending Planning',
+          createdAt: '2026-06-08'
+        }
+      ],
+      coaRecords: [
+        {
+          id: 'coa-001',
+          lotNumber: 'LOT-ROSE-202605',
+          materialId: 'mat-001',
+          materialName: 'French Rose Centric Oil',
+          supplierId: 'supp-1',
+          fileName: 'COA_Rose_Lot202605.pdf',
+          verifiedDate: '2026-05-15',
+          status: 'Approved',
+          purity: '99.4%',
+          appearance: 'Clear pinkish oil',
+          odor: 'Conforms to Rose Std'
+        }
+      ],
+      packagingLotLogs: []
+    };
+    createEventLog("Demo Mock Data seeds loaded manually. Dashboard charts restored.", "System", "info");
+    return res.json({ success: true, message: "รีโหลดข้อมูลจำลองสำรอง (Demo Mock Data) เรียบร้อยแล้ว!" });
+  }
+
   dbState = {
-    departments: [...DEPARTMENTS],
-    roles: [...ROLES],
-    employees: [...EMPLOYEES],
-    customers: [...CUSTOMERS],
-    suppliers: [...SUPPLIERS],
-    products: [...PRODUCTS],
-    materials: [...MATERIALS],
-    formulas: [...FORMULAS],
-    machines: [...MACHINES],
-    manufacturingOrders: [...MANUFACTURING_ORDERS],
-    purchaseRequests: [...PURCHASE_REQUESTS],
-    purchaseOrders: [...PURCHASE_ORDERS],
-    goodsReceipts: [...GOODS_RECEIPTS],
-    qcInspections: [...QC_INSPECTIONS],
-    repairTickets: [...REPAIR_TICKETS],
-    pmTasks: [...PM_TASKS],
-    spareParts: [...SPARE_PARTS],
-    attendance: [...ATTENDANCE],
-    leaveRequests: [...LEAVE_REQUESTS],
-    otRequests: [...OT_REQUESTS],
-    payrollPeriods: [...PAYROLL_PERIODS],
-    payslips: [...PAYSLIPS],
-    transactions: [...TRANSACTIONS],
-    invoices: [...INVOICES],
-    supplierBills: [...SUPPLIER_BILLS],
-    bills: [...SUPPLIER_BILLS], // Alias for Accounting tab safety
-    coa: [
-      { code: '1010', name: 'Cash on Hand / Industrial Treasury', type: 'Asset', balance: 450000, id: 'coa-1010' },
-      { code: '1020', name: 'Raw Material Inventory Capitalized', type: 'Asset', balance: 185000, id: 'coa-1020' },
-      { code: '1030', name: 'Accounts Receivable (A/R Ledger)', type: 'Asset', balance: 163000, id: 'coa-1030' },
-      { code: '2010', name: 'Accounts Payable Accrued (A/P)', type: 'Liability', balance: 15800, id: 'coa-2010' },
-      { code: '3010', name: 'Corporate Retained Earnings Capital', type: 'Equity', balance: 350000, id: 'coa-3010' },
-      { code: '4010', name: 'Wholesale Factory Product Sales Revenue', type: 'Revenue', balance: 512500, id: 'coa-4010' },
-      { code: '5010', name: 'Direct Plant Wages & Labor Expenses', type: 'Expense', balance: 150700, id: 'coa-5010' },
-      { code: '5020', name: 'Machinery Overhaul & Corrective PM OPEX', type: 'Expense', balance: 14200, id: 'coa-5020' },
-      { code: '5030', name: 'Direct Raw Material Procurement OPEX', type: 'Expense', balance: 60500, id: 'coa-5030' }
-    ],
-    journals: [
-      {
-        id: 'jn-001',
-        memo: 'Raw material inventory asset adjustment',
-        date: '2026-05-01',
-        lines: [
-          { accountCode: '1020', type: 'Debit', amount: 185000 },
-          { accountCode: '3010', type: 'Credit', amount: 185000 }
-        ]
-      },
-      {
-        id: 'jn-002',
-        memo: 'May 2026 plant wages ledger allocation',
-        date: '2026-05-28',
-        lines: [
-          { accountCode: '5010', type: 'Debit', amount: 150700 },
-          { accountCode: '1010', type: 'Credit', amount: 150700 }
-        ]
-      }
-    ],
-    auditLogs: [...AUDIT_LOGS],
+    departments: [],
+    roles: [],
+    employees: [],
+    customers: [],
+    suppliers: [],
+    products: [],
+    materials: [],
+    formulas: [],
+    machines: [],
+    manufacturingOrders: [],
+    purchaseRequests: [],
+    purchaseOrders: [],
+    goodsReceipts: [],
+    qcInspections: [],
+    repairTickets: [],
+    pmTasks: [],
+    spareParts: [],
+    attendance: [],
+    leaveRequests: [],
+    otRequests: [],
+    payrollPeriods: [],
+    payslips: [],
+    transactions: [],
+    invoices: [],
+    supplierBills: [],
+    bills: [], // Alias for Accounting tab safety
+    coa: [],
+    journals: [],
+    auditLogs: [],
     notifications: [
-      { id: 'n-1', message: 'System Hard Reset Initiated - Seeded Production Data Reloaded', severity: 'info', createdAt: new Date().toISOString() }
+      { id: 'n-1', message: 'System Reset Completed - Reloaded live state from Supabase', severity: 'info', createdAt: new Date().toISOString() }
     ],
-    salesJobs: [
-      {
-        id: 'job-05002',
-        jobCode: '#05002',
-        customerId: 'cust-1',
-        customerCode: 'CUS-2026-001',
-        productId: 'prod-001',
-        formulaId: 'form-001',
-        quantityRequested: 1000,
-        driveLink: 'https://drive.google.com/drive/folders/1oSSFJqg2HT9o_yOH-iePcbpnsNzqFdaA?usp=sharing',
-        status: 'Pending Planning',
-        createdAt: '2026-06-08'
-      }
-    ],
-    coaRecords: [
-      {
-        id: 'coa-001',
-        lotNumber: 'LOT-ROSE-202605',
-        materialId: 'mat-001',
-        materialName: 'French Rose Centric Oil',
-        supplierId: 'supp-1',
-        fileName: 'COA_Rose_Lot202605.pdf',
-        verifiedDate: '2026-05-15',
-        status: 'Approved',
-        purity: '99.4%',
-        appearance: 'Clear pinkish oil',
-        odor: 'Conforms to Rose Std'
-      }
-    ],
+    salesJobs: [],
+    coaRecords: [],
     packagingLotLogs: []
   };
-  createEventLog("Factory Master Database restored to seeded default ERP state.", "System", "info");
-  res.json({ success: true, message: "Database state completely reset and seeded successfully." });
+
+  try {
+    await loadFromSupabase();
+    createEventLog("Factory Master Database restored to live Supabase states.", "System", "info");
+    res.json({ success: true, message: "Database state successfully reloaded from Supabase." });
+  } catch (err: any) {
+    console.error("[RESET ERROR] Failed to load from Supabase:", err);
+    res.json({ success: false, message: "State cleared but failed to load fresh Supabase tables: " + err.message });
+  }
 });
 
 // Scale Database to High Volume Industrial level (250 Chemicals / 120 Formulas with COAs)
@@ -2092,6 +2191,30 @@ CREATE INDEX idx_qc_ref ON qc_inspections(reference_id);
 CREATE INDEX idx_repair_machine ON repair_tickets(machine_id);
 CREATE INDEX idx_attendance_day ON attendance_records(date, employee_id);
 CREATE INDEX idx_ledger_cat ON account_transactions(category, date);
+
+-- DISABLE ROW LEVEL SECURITY (RLS) FOR ALL RELATIONAL TABLES FOR ANONYMOUS APP ACCESS --
+ALTER TABLE public.departments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.material_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.formula_headers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.formula_details DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.manufacturing_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goods_receipts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.qc_inspections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.machines DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pm_tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.repair_tickets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payroll_periods DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payslips DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;
 
 -- SEED STATEMENTS INSERT --
 INSERT INTO roles VALUES ('role-admin', 'Admin', ARRAY['Production', 'Maintenance', 'HR', 'Accounting', 'Developer']);

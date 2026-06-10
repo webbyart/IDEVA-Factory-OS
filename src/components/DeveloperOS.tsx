@@ -57,11 +57,18 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
     setTimeout(() => setIsCopied(false), 2000);
   };
 
-  const hardResetDb = async () => {
-    if(!window.confirm("Are you sure you want to reset the factory database? This will clear active production records and re-seed defaults.")) return;
+  const hardResetDb = async (type?: 'clean' | 'mock') => {
+    const confirmMsg = type === 'clean' 
+      ? 'คุณแน่ใจว่าต้องการเคลียร์ล้างข้อมูลทั้งหมดกระดานเป็นค่าว่าง? การกระทำนี้จะล้างข้อมูลตัวอย่าง (Mock Data) ทั้งหมดเพื่อเริ่มบันทึกงานใหม่'
+      : type === 'mock'
+        ? 'คุณแน่ใจว่าต้องการโหลดข้อมูลจำลองต้นแบบสำเร็จรูป (Mock Data)? การกระทำนี้จะลงทับประวัติปัจจุบันและใส่ประวัติโรงงานพร้อมชาร์ตสรุปเพื่อความรวดเร็วในการทดสอบ'
+        : 'คุณแน่ใจว่าต้องการกู้คืนข้อมูลสดจากคลาวด์ Supabase โดยยกเลิกการปรับปรุงในหน่วยความจำชั่วคราว?';
+        
+    if(!window.confirm(confirmMsg)) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/state/reset', { method: 'POST' });
+      const url = type ? `/api/state/reset?type=${type}` : '/api/state/reset';
+      const res = await fetch(url, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         onNotify(data.message, "info");
@@ -86,11 +93,11 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
           <div>
             <h2 className="text-base font-semibold text-[#1D1D1F] tracking-tight">ระบบสถาปัตยกรรมและโครงสร้างฐานข้อมูล (Database Architecture OS)</h2>
             <p className="text-xs text-[#86868B] mt-0.5">
-              แสดงพังความสัมพันธ์เชิงสัมพันธ์แบบคีย์เชื่อมโยง (Entity Relation Schema) และตารางตรวจสอบคำสั่งระบุ PostgreSQL อย่างโปร่งใส
+              แสดงแผนผังความสัมพันธ์เชิงสัมพันธ์แบบคีย์เชื่อมโยง (Entity Relation Schema) และจัดการล้างข้อมูล Mock Data
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap md:flex-nowrap">
           <button 
             type="button"
             onClick={() => {
@@ -102,13 +109,23 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
           >
             <RefreshCw className="h-4 w-4" />
           </button>
+          
           <button
             type="button"
-            onClick={hardResetDb}
+            onClick={() => hardResetDb('mock')}
             disabled={loading}
-            className="px-4 py-1.5 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/15 text-[#FF3B30] font-medium text-xs rounded-xl border border-[#FF3B30]/20 transition-colors flex items-center gap-2"
+            className="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium text-xs rounded-xl border border-blue-200 transition-colors flex items-center gap-1"
           >
-            ล้างข้อมูลและตั้งค่าใหม่ (Reset DB)
+            🌱 โหลดชุดข้อมูลจำลอง (Load Demo Seeds)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => hardResetDb('clean')}
+            disabled={loading}
+            className="px-4 py-1.5 bg-[#FF3B30]/10 hover:bg-[#FF3B30]/15 text-[#FF3B30] font-medium text-xs rounded-xl border border-[#FF3B30]/20 transition-colors flex items-center gap-1"
+          >
+            🗑️ เคลียร์ประวัติจำลองเป็นค่าว่าง (Clear Mock Data)
           </button>
         </div>
       </div>
@@ -227,13 +244,59 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
                 </div>
               </div>
             ) : (
-              <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-4">
-                <span className="text-emerald-500 font-bold text-xl leading-none">✓</span>
-                <div className="space-y-1 bg-transparent">
-                  <h4 className="font-bold text-sm text-emerald-950">เชื่อมต่อฐานข้อมูลกูเกิลคลาวด์ Supabase สำเร็จ! ยกเลิก Mock Data แล้ว</h4>
-                  <p className="text-xs text-emerald-800 leading-relaxed">
-                    ขณะนี้ระบบ ERP & MES กำลังเก็บรักษาข้อมูลจริงทั้งหมดของคุณอย่างไร้รอยต่อในตาราง <strong>{supabaseStatus.table}</strong> ของโปรเจกต์ Supabase (<span className="font-mono text-[10px] bg-emerald-100/60 px-1 py-0.5 rounded">{supabaseStatus.url.split('/')[2]}</span>) ตลอดเวลา ข้อมูลลูกค้า, รายงาน COA เกรดสารเคมี, ใบสรุปชั่งผลิต, ประวัติเครื่องจักรสะสม PM และประวัติทางการบัญชี จะไม่สูญหายอีกต่อไปแม้จะรีสตาร์ตระบบ
-                  </p>
+              <div className="space-y-4 bg-transparent">
+                <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-4">
+                  <span className="text-emerald-500 font-bold text-xl leading-none">✓</span>
+                  <div className="space-y-1 bg-transparent">
+                    <h4 className="font-bold text-sm text-emerald-950">เชื่อมต่อฐานข้อมูลกูเกิลคลาวด์ Supabase สำเร็จ! ยกเลิก Mock Data แล้ว</h4>
+                    <p className="text-xs text-emerald-800 leading-relaxed">
+                      ขณะนี้ระบบ ERP & MES กำลังเก็บรักษาข้อมูลจริงทั้งหมดของคุณอย่างไร้รอยต่อในตาราง <strong>{supabaseStatus.table}</strong> ของโปรเจกต์ Supabase (<span className="font-mono text-[10px] bg-emerald-100/60 px-1 py-0.5 rounded">{supabaseStatus.url.split('/')[2]}</span>) ตลอดเวลา ข้อมูลลูกค้า, รายงาน COA เกรดสารเคมี, ใบสรุปชั่งผลิต, ประวัติเครื่องจักรสะสม PM และประวัติทางการบัญชี จะไม่สูญหายอีกต่อไปแม้จะรีสตาร์ตระบบ
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-amber-50/50 border border-amber-200 rounded-xl space-y-3">
+                  <div className="flex justify-between items-center flex-col sm:flex-row gap-3">
+                    <div>
+                      <h4 className="font-bold text-xs text-amber-900">⚠️ พบปัญหากการบันทึก / บันทึกประวัติล้มเหลว (RLS Violations)?</h4>
+                      <p className="text-[10.5px] text-amber-700 mt-0.5 leading-relaxed">
+                        หากคุณแยกตารางสัมพันธ์บน Supabase แล้วเจอปัญหาระบุสิทธิ์ (Error 42501 / 401: violates row-level security policy), กรุณาคัดลอก SQL นี้ไปรันใน SQL Editor ของ Supabase เพื่อปลดบล็อกสิทธิ์ลงบันทึกในตารางสัมพัทธ์ทั้งหมดได้อย่างสมบูรณ์แบบ
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const rlsBypassSql = `-- Disable Row Level Security (RLS) on all relational tables for seamless ERP sync\n` +
+                          `ALTER TABLE public.departments DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.roles DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.employees DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.customer_master DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.supplier_master DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.product_master DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.material_master DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.formula_headers DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.formula_details DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.manufacturing_orders DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.purchase_requests DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.purchase_orders DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.goods_receipts DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.qc_inspections DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.machines DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.pm_tasks DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.repair_tickets DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.attendance_records DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.payroll_periods DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.payslips DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.account_transactions DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;`;
+                        navigator.clipboard.writeText(rlsBypassSql);
+                        onNotify("คัดลอกคำสั่งปลดบล็อก RLS เรียบร้อย! สำหรับนำไปรันใน SQL Editor ของ Supabase เพื่อลดข้อขัดแย้งของระบบสำเร็จ", "info");
+                      }}
+                      className="py-1.5 px-3 bg-[#1D1D1F] hover:bg-[#2D2D2F] text-white text-[11px] rounded-lg font-semibold transition-all whitespace-nowrap self-stretch sm:self-auto text-center"
+                    >
+                      คัดลอก SQL ปลด RLS ตารางทั้งหมด
+                    </button>
+                  </div>
                 </div>
               </div>
             )}

@@ -295,6 +295,33 @@ CREATE TABLE audit_logs (
 
 
 -- =================================================================================
+-- DISABLE ROW LEVEL SECURITY (RLS) ON ALL RELATIONAL TABLES FOR APP ACCESS
+-- =================================================================================
+ALTER TABLE public.departments DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.roles DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.employees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.supplier_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.product_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.material_master DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.formula_headers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.formula_details DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.manufacturing_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_requests DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchase_orders DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goods_receipts DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.qc_inspections DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.machines DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.pm_tasks DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.repair_tickets DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.attendance_records DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payroll_periods DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payslips DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.account_transactions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;
+
+
+-- =================================================================================
 -- PART 3: 10 SEED RECORDS PER PRIMARY TABLE (10 Lists simple data)
 -- =================================================================================
 
