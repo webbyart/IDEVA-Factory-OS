@@ -1,0 +1,11 @@
+{
+  "name": "Remix: Remix: IDEVA Factory OS",
+  "description": "Enterprise-grade Factory Management Web Application featuring Production, Maintenance, HR \u0026 Payroll, and Accounting OS modules.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
