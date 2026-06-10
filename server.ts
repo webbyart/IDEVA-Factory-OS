@@ -26,12 +26,245 @@ const app = express();
 app.use(express.json());
 
 // ----------------------------------------------------
-// SUPABASE REALTIME CLOUD INTEGRATION
+// SUPABASE REALTIME CLOUD INTEGRATION & RELATIONAL SHIPMENT
 // ----------------------------------------------------
 const SUPABASE_URL = process.env.SUPABASE_URL || "https://zizlhxikswejwvoftshk.supabase.co/rest/v1/";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
 
 let supabaseConnected = false;
+
+// ----------------------------------------------------
+// NATIVE RELATIONAL SYNCHRONIZER ADAPTERS
+// ----------------------------------------------------
+function toCamel(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(v => toCamel(v));
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((result, key) => {
+      const camelKey = key.replace(/_([a-z])/g, (g) => g[1].toUpperCase());
+      result[camelKey] = toCamel(obj[key]);
+      return result;
+    }, {} as any);
+  }
+  return obj;
+}
+
+function toSnake(obj: any): any {
+  if (Array.isArray(obj)) {
+    return obj.map(v => toSnake(v));
+  } else if (obj !== null && typeof obj === 'object') {
+    return Object.keys(obj).reduce((result, key) => {
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      result[snakeKey] = toSnake(obj[key]);
+      return result;
+    }, {} as any);
+  }
+  return obj;
+}
+
+const TABLE_MAPPINGS: Record<string, { table: string }> = {
+  departments: { table: "departments" },
+  roles: { table: "roles" },
+  employees: { table: "employees" },
+  customers: { table: "customer_master" },
+  suppliers: { table: "supplier_master" },
+  products: { table: "product_master" },
+  materials: { table: "material_master" },
+  machines: { table: "machines" },
+  manufacturingOrders: { table: "manufacturing_orders" },
+  purchaseRequests: { table: "purchase_requests" },
+  purchaseOrders: { table: "purchase_orders" },
+  goodsReceipts: { table: "goods_receipts" },
+  qcInspections: { table: "qc_inspections" },
+  repairTickets: { table: "repair_tickets" },
+  pmTasks: { table: "pm_tasks" },
+  attendance: { table: "attendance_records" },
+  payrollPeriods: { table: "payroll_periods" },
+  payslips: { table: "payslips" },
+  transactions: { table: "account_transactions" },
+  auditLogs: { table: "audit_logs" },
+};
+
+const TABLE_COLUMNS: Record<string, string[]> = {
+  departments: ["id", "name", "code", "created_at"],
+  roles: ["id", "name", "permitted_menus"],
+  employees: ["id", "name", "email", "department_id", "role_id", "status", "salary", "allowance", "joining_date", "skills", "line_user_id", "citizen_id"],
+  customer_master: ["id", "name", "code", "email", "phone", "address"],
+  supplier_master: ["id", "name", "code", "contact_person", "phone", "email"],
+  product_master: ["id", "sku", "name", "category", "min_stock", "stock_level", "unit", "cost_price", "sell_price"],
+  material_master: ["id", "code", "name", "category", "min_stock", "stock_level", "unit", "cost_per_unit"],
+  formula_headers: ["id", "product_id", "version", "status", "approved_by", "created_at"],
+  formula_details: ["id", "formula_id", "material_id", "quantity_required"],
+  manufacturing_orders: ["id", "product_id", "formula_id", "quantity_requested", "quantity_produced", "start_date", "end_date", "status", "material_cost", "packaging_cost", "labor_cost", "overhead_cost", "loss_cost", "total_cost", "cost_per_piece"],
+  purchase_requests: ["id", "material_id", "quantity", "urgency", "status", "requested_by", "created_at"],
+  purchase_orders: ["id", "pr_id", "supplier_id", "material_id", "quantity", "total_cost", "status", "created_at"],
+  goods_receipts: ["id", "po_id", "supplier_id", "material_id", "quantity_received", "lot_number", "expiry_date", "status", "created_at"],
+  qc_inspections: ["id", "source_type", "reference_id", "inspector", "status", "parameters", "created_at"],
+  machines: ["id", "name", "code", "section", "status", "qr_code_url", "installed_date", "mtbf_hours", "mttr_hours"],
+  pm_tasks: ["id", "machine_id", "title", "interval_days", "due_by", "status"],
+  repair_tickets: ["id", "machine_id", "requested_by", "description", "priority", "status", "assigned_technician", "root_cause", "corrective_action", "created_at", "resolved_at"],
+  attendance_records: ["id", "employee_id", "date", "check_in", "check_out", "gps_lat", "gps_lng", "status"],
+  payroll_periods: ["id", "period_name", "start_date", "end_date", "status"],
+  payslips: ["id", "payroll_period_id", "employee_id", "base_salary", "ot_pay", "allowance_sum", "bonus", "sso_deduction", "tax_deduction", "net_pay", "pdf_generated"],
+  account_transactions: ["id", "date", "type", "category", "amount", "description"],
+  audit_logs: ["id", "user", "role", "action", "timestamp", "module"]
+};
+
+async function fetchTableDirect(tableName: string): Promise<any[]> {
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/$/, "");
+    const res = await fetch(`${cleanUrl}/${tableName}?select=*`, {
+      method: "GET",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`
+      }
+    });
+    if (!res.ok) {
+      console.warn(`[SUPABASE READ WARNING] Table '${tableName}' returned status ${res.status}`);
+      return [];
+    }
+    return await res.json();
+  } catch (err: any) {
+    console.warn(`[SUPABASE READ EXCEPTION] Table '${tableName}' failed to load:`, err.message);
+    return [];
+  }
+}
+
+async function syncCollectionToSupabase(stateKey: string, items: any[]) {
+  const mapping = TABLE_MAPPINGS[stateKey];
+  if (!mapping) return;
+  const dbTable = mapping.table;
+  const allowedCols = TABLE_COLUMNS[dbTable];
+  if (!allowedCols) return;
+
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/$/, "");
+    const url = `${cleanUrl}/${dbTable}`;
+
+    const rowsToUpsert = items.map(item => {
+      let mapped = { ...item };
+      
+      // Special conversions
+      if (stateKey === "manufacturingOrders" && item.costSummary) {
+        mapped.materialCost = item.costSummary.materialCost;
+        mapped.packagingCost = item.costSummary.packagingCost;
+        mapped.laborCost = item.costSummary.laborCost;
+        mapped.overheadCost = item.costSummary.overheadCost;
+        mapped.lossCost = item.costSummary.lossCost;
+        mapped.totalCost = item.costSummary.totalCost || item.totalCost;
+        mapped.costPerPiece = item.costSummary.costPerPiece || item.costPerPiece;
+      }
+
+      const snakeObj = toSnake(mapped);
+      
+      // Filter columns
+      const filtered: any = {};
+      allowedCols.forEach(col => {
+        if (snakeObj[col] !== undefined) {
+          filtered[col] = snakeObj[col];
+        }
+      });
+      return filtered;
+    });
+
+    if (rowsToUpsert.length === 0) return;
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "apikey": SUPABASE_KEY,
+        "Authorization": `Bearer ${SUPABASE_KEY}`,
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+      },
+      body: JSON.stringify(rowsToUpsert)
+    });
+
+    if (!res.ok) {
+      console.error(`[SUPABASE SYNC ERROR] Failed to sync ${stateKey} to ${dbTable}:`, res.status, await res.text());
+    } else {
+      console.log(`[SUPABASE SYNC SUCCESS] Synced ${rowsToUpsert.length} rows for ${stateKey} to ${dbTable}.`);
+    }
+  } catch (err: any) {
+    console.error(`[SUPABASE SYNC EXCEPTION] Failed to sync key ${stateKey}:`, err.message);
+  }
+}
+
+async function syncFormulasToSupabase(formulas: any[]) {
+  try {
+    const cleanUrl = SUPABASE_URL.replace(/\/$/, "");
+    
+    const headers = formulas.map(f => {
+      const snakeObj = toSnake(f);
+      const filtered: any = {};
+      TABLE_COLUMNS.formula_headers.forEach(col => {
+        if (snakeObj[col] !== undefined) {
+          filtered[col] = snakeObj[col];
+        }
+      });
+      return filtered;
+    });
+    
+    if (headers.length > 0) {
+      const resHeader = await fetch(`${cleanUrl}/formula_headers`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json",
+          "Prefer": "resolution=merge-duplicates"
+        },
+        body: JSON.stringify(headers)
+      });
+      if (!resHeader.ok) {
+        console.error(`[SUPABASE FORMULA SYNC] Failed to sync formula_headers:`, resHeader.status, await resHeader.text());
+      }
+    }
+
+    const allDetailRows: any[] = [];
+    formulas.forEach(f => {
+      if (Array.isArray(f.items)) {
+        f.items.forEach((item: any) => {
+          allDetailRows.push({
+            formula_id: f.id,
+            material_id: item.materialId,
+            quantity_required: item.quantity
+          });
+        });
+      }
+    });
+
+    if (allDetailRows.length > 0) {
+      const formulaIdList = formulas.map(f => f.id).filter(Boolean);
+      if (formulaIdList.length > 0) {
+        // Clear old ones first for safe update
+        await fetch(`${cleanUrl}/formula_details?formula_id=in.(${formulaIdList.join(",")})`, {
+          method: "DELETE",
+          headers: {
+            "apikey": SUPABASE_KEY,
+            "Authorization": `Bearer ${SUPABASE_KEY}`
+          }
+        });
+      }
+      
+      const resDetails = await fetch(`${cleanUrl}/formula_details`, {
+        method: "POST",
+        headers: {
+          "apikey": SUPABASE_KEY,
+          "Authorization": `Bearer ${SUPABASE_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(allDetailRows)
+      });
+      if (!resDetails.ok) {
+        console.error(`[SUPABASE DETAIL SYNC] Failed to sync formula_details:`, resDetails.status, await resDetails.text());
+      }
+    }
+  } catch (err: any) {
+    console.error("[SUPABASE FORMULAS SYNC EXCEPTION]", err.message);
+  }
+}
 
 async function loadFromSupabase() {
   if (!SUPABASE_KEY) {
@@ -40,41 +273,123 @@ async function loadFromSupabase() {
   }
   try {
     const cleanUrl = SUPABASE_URL.replace(/\/$/, "");
-    const url = `${cleanUrl}/factory_data?id=eq.global_factory_state&select=*`;
-    
-    console.log(`[SUPABASE] Attempting to load from: ${url}`);
-    const res = await fetch(url, {
+    console.log(`[SUPABASE] Attempting direct relational tables fetch from: ${cleanUrl}`);
+
+    // First load other fields / configs from the single JSON fallback record
+    const res = await fetch(`${cleanUrl}/factory_data?id=eq.global_factory_state&select=*`, {
       method: "GET",
       headers: {
         "apikey": SUPABASE_KEY,
         "Authorization": `Bearer ${SUPABASE_KEY}`
       }
     });
-
-    if (res.status === 404) {
-      console.warn("[SUPABASE WARNING] Table 'public.factory_data' not found in Supabase (404). Please create the table using the SQL Editor in Supabase.");
-      supabaseConnected = false;
-      return;
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0 && data[0].state) {
+        dbState = { ...dbState, ...data[0].state };
+        console.log("[SUPABASE] Loaded base configurations.");
+      }
     }
 
-    if (!res.ok) {
-      console.error("[SUPABASE ERROR] Failed to fetch state from Supabase:", res.status, await res.text());
-      supabaseConnected = false;
-      return;
+    // Now pull direct PostgreSQL tables and overwrite standard keys securely!
+    const depts = await fetchTableDirect("departments");
+    if (depts.length > 0) dbState.departments = toCamel(depts);
+    
+    const roles = await fetchTableDirect("roles");
+    if (roles.length > 0) dbState.roles = toCamel(roles);
+    
+    const emps = await fetchTableDirect("employees");
+    if (emps.length > 0) dbState.employees = toCamel(emps);
+    
+    const custs = await fetchTableDirect("customer_master");
+    if (custs.length > 0) dbState.customers = toCamel(custs);
+    
+    const supps = await fetchTableDirect("supplier_master");
+    if (supps.length > 0) dbState.suppliers = toCamel(supps);
+    
+    const prods = await fetchTableDirect("product_master");
+    if (prods.length > 0) dbState.products = toCamel(prods);
+    
+    const mats = await fetchTableDirect("material_master");
+    if (mats.length > 0) dbState.materials = toCamel(mats);
+    
+    const headers = await fetchTableDirect("formula_headers");
+    const details = await fetchTableDirect("formula_details");
+    if (headers.length > 0) {
+      dbState.formulas = headers.map((h: any) => {
+        const items = details
+          .filter((d: any) => d.formula_id === h.id || d.formulaId === h.id)
+          .map((d: any) => ({
+            materialId: d.material_id || d.materialId,
+            quantity: Number(d.quantity_required || d.quantityRequired || 0)
+          }));
+        return {
+          id: h.id,
+          productId: h.product_id || h.productId,
+          version: h.version,
+          status: h.status,
+          approvedBy: h.approved_by || h.approvedBy,
+          items
+        };
+      });
     }
+    
+    const machinesTable = await fetchTableDirect("machines");
+    if (machinesTable.length > 0) dbState.machines = toCamel(machinesTable);
+    
+    const mos = await fetchTableDirect("manufacturing_orders");
+    if (mos.length > 0) {
+      dbState.manufacturingOrders = mos.map((row: any) => {
+        const mapped = toCamel(row);
+        mapped.costSummary = {
+          materialCost: Number(row.material_cost || 0),
+          packagingCost: Number(row.packaging_cost || 0),
+          laborCost: Number(row.labor_cost || 0),
+          overheadCost: Number(row.overhead_cost || 0),
+          lossCost: Number(row.loss_cost || 0),
+        };
+        return mapped;
+      });
+    }
+    
+    const prs = await fetchTableDirect("purchase_requests");
+    if (prs.length > 0) dbState.purchaseRequests = toCamel(prs);
+    
+    const pos = await fetchTableDirect("purchase_orders");
+    if (pos.length > 0) dbState.purchaseOrders = toCamel(pos);
+    
+    const grs = await fetchTableDirect("goods_receipts");
+    if (grs.length > 0) dbState.goodsReceipts = toCamel(grs);
+    
+    const qcs = await fetchTableDirect("qc_inspections");
+    if (qcs.length > 0) dbState.qcInspections = toCamel(qcs);
+    
+    const repairs = await fetchTableDirect("repair_tickets");
+    if (repairs.length > 0) dbState.repairTickets = toCamel(repairs);
+    
+    const pms = await fetchTableDirect("pm_tasks");
+    if (pms.length > 0) dbState.pmTasks = toCamel(pms);
+    
+    const atts = await fetchTableDirect("attendance_records");
+    if (atts.length > 0) dbState.attendance = toCamel(atts);
+    
+    const periods = await fetchTableDirect("payroll_periods");
+    if (periods.length > 0) dbState.payrollPeriods = toCamel(periods);
+    
+    const slips = await fetchTableDirect("payslips");
+    if (slips.length > 0) dbState.payslips = toCamel(slips);
+    
+    const txs = await fetchTableDirect("account_transactions");
+    if (txs.length > 0) dbState.transactions = toCamel(txs);
+    
+    const logTable = await fetchTableDirect("audit_logs");
+    if (logTable.length > 0) dbState.auditLogs = toCamel(logTable);
 
-    const data = await res.json();
-    if (Array.isArray(data) && data.length > 0 && data[0].state) {
-      dbState = data[0].state;
-      supabaseConnected = true;
-      console.log("[SUPABASE SUCCESS] Loaded live company database state from Supabase cloud!");
-    } else {
-      console.log("[SUPABASE EMPTY] No state found in factory_data table. Initializing with default seeded state...");
-      supabaseConnected = true;
-      await saveToSupabase();
-    }
+    supabaseConnected = true;
+    console.log("[SUPABASE SUCCESS] Loaded 100% direct SQL database tables cleanly!");
   } catch (err: any) {
-    console.error("[SUPABASE EXCEPTION] Unable to connect to Supabase. working in offline memory fallback mode.", err.message);
+    console.error("[SUPABASE EXCEPTION] Fallback mode:", err.message);
     supabaseConnected = false;
   }
 }
@@ -83,9 +398,10 @@ async function saveToSupabase() {
   if (!SUPABASE_KEY) return;
   try {
     const cleanUrl = SUPABASE_URL.replace(/\/$/, "");
-    const url = `${cleanUrl}/factory_data`;
     
-    const res = await fetch(url, {
+    // Save to monolithic backup state
+    const mainUrl = `${cleanUrl}/factory_data`;
+    await fetch(mainUrl, {
       method: "POST",
       headers: {
         "apikey": SUPABASE_KEY,
@@ -100,15 +416,24 @@ async function saveToSupabase() {
       })
     });
 
-    if (res.ok) {
-      supabaseConnected = true;
-      console.log("[SUPABASE SUCCESS] Synchronized live transactions & records securely to Supabase cloud.");
-    } else {
-      console.error("[SUPABASE SAVE ERROR] Failed to sync state to Supabase:", res.status, await res.text());
-      supabaseConnected = false;
+    // Save individual relational tables in parallel
+    console.log("[SUPABASE SYNC] Syncing to separate relational tables...");
+    const syncPromises = Object.keys(TABLE_MAPPINGS).map(key => {
+      if (dbState[key]) {
+        return syncCollectionToSupabase(key, dbState[key]);
+      }
+      return Promise.resolve();
+    });
+    
+    if (dbState.formulas) {
+      syncPromises.push(syncFormulasToSupabase(dbState.formulas));
     }
+    
+    await Promise.all(syncPromises);
+    supabaseConnected = true;
+    console.log("[SUPABASE SYNC SUCCESS] Relational tables synchronized successfully.");
   } catch (err: any) {
-    console.error("[SUPABASE SAVE EXCEPTION] Offline buffer engaged. Sync deferred:", err.message);
+    console.error("[SUPABASE SAVE EXCEPTION] Background relational tables save failed:", err.message);
     supabaseConnected = false;
   }
 }

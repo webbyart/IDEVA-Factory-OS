@@ -195,39 +195,14 @@ export default function App() {
 
   const fetchState = async () => {
     try {
-      const baseUrl = ((import.meta as any).env.VITE_SUPABASE_URL || "https://zizlhxikswejwvoftshk.supabase.co/rest/v1/").replace(/\/$/, "");
-      const apiKey = (import.meta as any).env.VITE_SUPABASE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppemxoeGlrc3dland2b2Z0c2hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEwNzQ4NDMsImV4cCI6MjA5NjY1MDg0M30.lw7RsYg6Icz7HhT7cbjJsKrOv-pzKLV01D5WR03Ffg0";
-      
-      const response = await fetch(`${baseUrl}/factory_data?id=eq.global_factory_state&select=*`, {
-        method: 'GET',
-        headers: {
-          'apikey': apiKey,
-          'Authorization': `Bearer ${apiKey}`
-        }
-      });
-      
+      const response = await fetch('/api/state');
       if (!response.ok) {
-        throw new Error(`Supabase REST query failed with status ${response.status}`);
+        throw new Error(`Failed to fetch state from backend: ${response.status}`);
       }
-      
       const data = await response.json();
-      if (Array.isArray(data) && data.length > 0 && data[0].state) {
-        setDbState(data[0].state);
-      } else {
-        // Fallback to local server state route if empty in DB
-        const localResponse = await fetch('/api/state');
-        const localData = await localResponse.json();
-        setDbState(localData);
-      }
+      setDbState(data);
     } catch (e) {
-      // Fallback route to local state server
-      try {
-        const localResponse = await fetch('/api/state');
-        const localData = await localResponse.json();
-        setDbState(localData);
-      } catch (localErr) {
-        addToast("Failed to connect to backend server and Supabase.", "error");
-      }
+      addToast("Failed to connect to live Supabase company database.", "error");
     } finally {
       setLoading(false);
     }
