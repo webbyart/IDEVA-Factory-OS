@@ -1,18 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FileText, Clipboard, Check, RefreshCw } from 'lucide-react';
+import { Database, FileText, Clipboard, Check, RefreshCw, Globe, Server, HelpCircle, ArrowRight } from 'lucide-react';
 
 interface DeveloperOSProps {
   onNotify: (msg: string, type: 'info' | 'warning' | 'error') => void;
 }
 
 export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
-  const [activeTab, setActiveTab] = useState<'er' | 'ddl' | 'debugger' | 'supabase'>('supabase');
+  const [activeTab, setActiveTab] = useState<'er' | 'ddl' | 'debugger' | 'supabase' | 'deployment'>('supabase');
   const [ddlSql, setDdlSql] = useState<string>('');
   const [dbDebuggerState, setDbDebuggerState] = useState<any>(null);
   const [supabaseStatus, setSupabaseStatus] = useState<any>(null);
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [isSqlCopied, setIsSqlCopied] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
+  
+  const [customApiUrl, setCustomApiUrl] = useState<string>(localStorage.getItem("FACTORY_API_URL") || '');
+  const [currentOriginUrl, setCurrentOriginUrl] = useState<string>('');
+
+  useEffect(() => {
+    setCurrentOriginUrl(window.location.origin);
+  }, []);
+
+  const handleSaveApiUrl = () => {
+    const trimmed = customApiUrl.trim();
+    if (trimmed) {
+      localStorage.setItem("FACTORY_API_URL", trimmed);
+      onNotify("บันทึกที่อยู่เซิร์ฟเวอร์ Express เรียบร้อย! เปลี่ยนเส้นทางส่งข้อมูลทางอ้อมสำเร็จ", "info");
+    } else {
+      localStorage.removeItem("FACTORY_API_URL");
+      onNotify("สลับระบบเกตเวย์กลับเข้าใช้เซิร์ฟเวอร์หลักของ AI Studio สำเร็จ", "info");
+    }
+    fetchDebuggerState();
+    fetchSupabaseStatus();
+  };
+
+  const handleClearApiUrl = () => {
+    localStorage.removeItem("FACTORY_API_URL");
+    setCustomApiUrl('');
+    onNotify("ยกเลิก API เคลียร์ค่าว่าง! ระบบสลับกลับสู่เซิร์ฟเวอร์พรีวิวเรียบร้อย", "info");
+    fetchDebuggerState();
+    fetchSupabaseStatus();
+  };
+
 
   useEffect(() => {
     fetchDdl();
@@ -141,6 +170,13 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
         </button>
         <button
           type="button"
+          onClick={() => setActiveTab('deployment')}
+          className={`flex-1 py-1.5 px-3 rounded-lg font-medium text-xs transition-all whitespace-nowrap ${activeTab === 'deployment' ? 'bg-white text-emerald-600 shadow-sm font-bold' : 'text-[#86868B] hover:text-[#1D1D1F]'}`}
+        >
+          🌐 การเชื่อมต่อ Netlify & API Gateway
+        </button>
+        <button
+          type="button"
           onClick={() => setActiveTab('er')}
           className={`flex-1 py-1.5 px-3 rounded-lg font-medium text-xs transition-all whitespace-nowrap ${activeTab === 'er' ? 'bg-white text-[#1D1D1F] shadow-sm font-semibold' : 'text-[#86868B] hover:text-[#1D1D1F]'}`}
         >
@@ -164,6 +200,153 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
 
       {/* Tabs Content */}
       <div className="min-h-[450px]">
+        {activeTab === 'deployment' && (
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
+            <div className="flex md:items-center justify-between flex-col md:flex-row gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <h3 className="font-bold text-base text-slate-800 flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-emerald-500" />
+                  <span>Netlify Deploy Gateway & Express API Setup</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">ตั้งค่าช่องทางเชื่อมโยงเมื่อติดตั้ง App บน Netlify เพื่อเปลี่ยนไปคุยกับเซิร์ฟเวอร์ฐานข้อมูลหลังบ้าน</p>
+              </div>
+            </div>
+
+            <div className="p-5 bg-amber-50 border border-amber-200/80 rounded-xl space-y-3">
+              <h4 className="font-bold text-xs text-amber-900 flex items-center gap-1.5">
+                <HelpCircle className="h-4 w-4" />
+                ทำไม Deploy บน Netlify แล้วถึงแจ้งว่า "เชื่อมต่อ Supabase ไม่ได้"?
+              </h4>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                เนื่องจาก Netlify เป็นแพลตฟอร์มแบบ <strong>Static Host (Single Page Application)</strong> ซึ่งจะทำหน้าที่ดาวน์โหลดและติดตั้งเพียงหน้ากาก UI (React Code) เท่านั้น! ขณะที่ระบบบริหารโรงงานหลังบ้าน (Express JS Server) ซึ่งบรรจุสูตรการคำนวณขั้นสูง การซิงค์และบันทึกลงสู่ Supabase รวมถึง AI Copilot <strong>จะไม่ได้ถูกรันอยู่บน Netlify</strong> การส่งคำสั่งดึงฐานข้อมูลปกติผ่านช่องทาง <code className="bg-amber-100/80 px-1 py-0.5 rounded font-mono text-[10.5px]">/api/*</code> จึงคืนค่า 404
+              </p>
+              <p className="text-xs text-amber-800 leading-relaxed font-semibold">
+                💡 ทางแก้ไขที่ง่ายและดีที่สุดมี 2 แนวทางหลัก:
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                <div className="p-3.5 bg-white bg-opacity-70 rounded-lg border border-amber-200 space-y-1.5">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                    <span className="bg-[#1D1D1F] text-white w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px]">1</span>
+                    ใช้อีเวนต์เกตเวย์ AI Studio (สตรีมมิ่งเซิร์ฟเวอร์รวดเร็ว)
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    คุณสามารถคัดลอก URL ของเซิร์ฟเวอร์ที่กำลังรันพรีวิวอยู่ขณะนี้จาก AI Studio ไปวางเซ็ตที่บราวเซอร์ Netlify ของคุณได้ทันที แอปพลิเคชันบน Netlify จะส่งคำสั่งควบคุมมาที่เซิร์ฟเวอร์นี้และเชื่อมลง Supabase ตลอดเวลา
+                  </p>
+                </div>
+                <div className="p-3.5 bg-white bg-opacity-70 rounded-lg border border-amber-200 space-y-1.5">
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1">
+                    <span className="bg-[#1D1D1F] text-white w-4 h-4 rounded-full inline-flex items-center justify-center text-[10px]">2</span>
+                    โฮสต์เซิร์ฟเวอร์ Express แยกภายนอก
+                  </div>
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    การทำระบบจริงในโปรดักชัน คุณสามารถนำโค้ดในโปรเจกต์นี้ไปฝาก Express API Server ไว้บนผู้ให้บริการ Node.js ฟรี เช่น <strong>Render.com</strong>, <strong>Railway.app</strong> หรือ <strong>Fly.io</strong> แล้วระบุเกตเวย์รับ-ส่งได้ทันที
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Config Panel */}
+            <div className="bg-slate-50 border border-slate-200/60 p-5 rounded-2xl space-y-4">
+              <h4 className="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                <Server className="h-4 w-4 text-indigo-500" />
+                แผงควบคุมการรับส่ง API Gateway (บราวเซอร์นี้ส่งทางอ้อม)
+              </h4>
+              <p className="text-[11.5px] text-slate-600 leading-normal">
+                หากต้องการให้ Netlify ของหน้าต่างนี้ส่งข้อมูลลงทะเบียนไปที่เซิร์ฟเวอร์ที่กำหนด ป้อนที่อยู่ของ Backend แล้วกดบันทึก ข้อมูลทั้งหมดจะถูกส่งถ่ายโอนได้อย่างไร้รอยต่อ
+              </p>
+
+              <div className="space-y-3">
+                <div className="flex gap-2 flex-col sm:flex-row">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      placeholder="เช่น https://ideva-express.onrender.com"
+                      value={customApiUrl}
+                      onChange={(e) => setCustomApiUrl(e.target.value)}
+                      className="w-full text-xs bg-white border border-slate-300 rounded-xl py-2.5 px-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono shadow-inner text-slate-800"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSaveApiUrl}
+                    className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold whitespace-nowrap transition-colors"
+                  >
+                    💾 บันทึกเกตเวย์เชื่อมโยง
+                  </button>
+                  {customApiUrl && (
+                    <button
+                      type="button"
+                      onClick={handleClearApiUrl}
+                      className="py-2.5 px-3 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold whitespace-nowrap transition-colors"
+                    >
+                      ยกเลิก & รีเซ็ต
+                    </button>
+                  )}
+                </div>
+
+                <div className="p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3">
+                  <div className="flex justify-between items-start flex-col sm:flex-row gap-3">
+                    <div className="space-y-1">
+                      <div className="text-[11px] font-bold text-indigo-950">🔗 พิกัดรหัสพรีวิวเซิร์ฟเวอร์ AI Studio คอนเทนเนอร์ของคุณขณะนี้:</div>
+                      <div className="text-[10.5px] font-mono text-indigo-700 select-all font-semibold break-all bg-indigo-100/40 py-1 px-2 rounded border border-indigo-200/50">
+                        {currentOriginUrl}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomApiUrl(currentOriginUrl);
+                        navigator.clipboard.writeText(currentOriginUrl);
+                        onNotify("คัดลอกที่ตั้งต้นแบบ AI Studio Server แล้ว! พร้อมสำหรับการรัน Netlify", "info");
+                      }}
+                      className="py-1 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10.5px] rounded-lg font-medium transition-colors flex items-center gap-1 self-stretch sm:self-auto text-center justify-center whitespace-nowrap"
+                    >
+                      คัดลอกและใส่ทันที <ArrowRight className="h-3 w-3" />
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-indigo-900/70 mt-1 leading-relaxed">
+                    *เมื่อคุณเปิดหน้าเว็บ Netlify (https://ideva-product-os.netlify.app/) ในเบราว์เซอร์นี้ ให้กดเข้าแท็บ <strong>Developer OS</strong> นี้นำพิกัดนี้ไปป้อนปุ่มบน Netlify แอปบน Netlify จะคุยกับเซิร์ฟเวอร์ใน AI Studio ตรงนี้และดึงข้อมูลลง Supabase ได้ทันที!
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Build guideline */}
+            <div className="p-5 border border-slate-200/80 rounded-2xl space-y-4 shadow-sm bg-white">
+              <h4 className="font-bold text-xs text-slate-800">🛠️ แนะนำวิธีการติดตั้งและ Deployment ในบทบาท Production</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                เนื่องจากแพ็กเกจนี้ถูกสร้างขึ้นมาให้เป็น <strong>Full-stack Node.js (Express + React)</strong> บนสถาปัตยกรรมระดับอุตสาหกรรม การอัปโครงสร้างจริงทั้งหมดไปเก็บไว้บนโฮสต์ของคุณให้มีประสิทธิภาพสูงสุด สามารถตั้งค่าได้ง่ายดาย:
+              </p>
+
+              <ol className="text-xs text-slate-600 list-decimal pl-5 space-y-3 leading-relaxed">
+                <li>
+                  <span className="font-semibold text-slate-900">อัปเลเยอร์ Node.js ไปใช้เซิร์ฟเวอร์ Express ถาวร</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    นำไฟล์ต้นฉบับบทความทั้งหมดของระบบ ไปฝากไว้ที่ Render/Railway ซึ่งจะคอมไพล์ <code className="font-mono text-[10px] bg-slate-100 px-1 py-0.5 rounded">server.ts</code> และเปิดพอร์ตรอรับคำสั่ง (ระบบเซ็ตไว้ที่พอร์ต 3000 และคุยกับ Supabase ตรงจุดนี้แบบปลอดภัย 100%)
+                  </p>
+                </li>
+                <li>
+                  <span className="font-semibold text-slate-900">กำหนด Environment Variables บนเซิร์ฟเวอร์ภายนอกของคุณ:</span>
+                  <div className="bg-slate-900 text-slate-300 font-mono text-[10.5px] p-3 rounded-lg mt-1 space-y-1 leading-relaxed">
+                    <div>SUPABASE_URL=https://your-project.supabase.co/rest/v1/</div>
+                    <div>SUPABASE_KEY=your-service-role-or-anon-key</div>
+                    <div>GEMINI_API_KEY=your-gemini-cognitive-key (สำหรับพึ่งพาระบบ AI Copilot)</div>
+                  </div>
+                </li>
+                <li>
+                  <span className="font-semibold text-slate-900">กำหนดตัวแปรฝั่ง Netlify Static UI (เลือกได้):</span>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    คุณสามารถไปเพิ่มตัวแปรสิ่งแวดล้อมที่แอปพลิเคชัน Netlify ของคุณในหัวข้อ Custom Env:
+                  </p>
+                  <div className="bg-slate-900 text-slate-300 font-mono text-[10.5px] p-3 rounded-lg mt-1 space-y-1.5">
+                    <div>VITE_API_URL=https://your-express-app.onrender.com <span className="text-emerald-400 text-[9.5px] ml-2">// ชี้หน้ากากมาหา Express</span></div>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'supabase' && supabaseStatus && (
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
             <div className="flex md:items-center justify-between flex-col md:flex-row gap-4 border-b border-slate-100 pb-4">
