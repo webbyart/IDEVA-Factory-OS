@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import QuoteFormModal from './QuoteFormModal';
 import { 
   Users, Search, Clipboard, FileSpreadsheet, PlusCircle, ArrowRight, FolderPlus, 
   Share2, Mail, Phone, Calendar, Kanban, CheckCircle, Clock, Trash2, Printer,
@@ -17,88 +18,119 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerIdForDetail, setSelectedCustomerIdForDetail] = useState<string>('cust-1');
   const [selectedProductSkuForRecipe, setSelectedProductSkuForRecipe] = useState<string>('prod-001');
+  
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   // Revision state for quotation edits
   const [revisingLeadId, setRevisingLeadId] = useState<string | null>(null);
   const [newDiscount, setNewDiscount] = useState<number>(10); // Percentage
   const [newNote, setNewNote] = useState<string>('แก้ไขลดต้นทุนเพื่อปิดข้อตกลง');
 
-  // Pipeline Leads with Revision History state
-  const [leads, setLeads] = useState([
-    { 
-      id: 'lead-1', 
-      company: 'Flora Cosmetic Paris', 
-      contact: 'Clarissa Fontaine', 
-      baseValue: 850000, 
-      value: 850000, 
-      stage: 'Proposal Sent', 
-      date: '2026-06-08', 
-      phone: '+33 655 0192', 
-      productType: 'Rose-Au-Gold Serum Premium',
-      revision: 0,
-      discountPct: 0,
-      revHistory: [] as Array<{ rev: string; val: number; discount: number; note: string; date: string }>
-    },
-    { 
-      id: 'lead-2', 
-      company: 'Mist & Glaze Bangkok', 
-      contact: 'คุณ วิภาวรรณ พัฒนาการ', 
-      baseValue: 420000, 
-      value: 420000, 
-      stage: 'Discussion', 
-      date: '2026-06-07', 
-      phone: '081-445-1200', 
-      productType: 'Centella Balancing Skin Toner',
-      revision: 0,
-      discountPct: 0,
-      revHistory: [] as Array<{ rev: string; val: number; discount: number; note: string; date: string }>
-    },
-    { 
-      id: 'lead-3', 
-      company: 'Nirvana Organics Inc.', 
-      contact: 'David Miller', 
-      baseValue: 1200000, 
-      value: 1200000, 
-      stage: 'Negotiation', 
-      date: '2026-06-05', 
-      phone: '+1 405 992 1010', 
-      productType: 'Premium Oud Diffuser',
-      revision: 0,
-      discountPct: 0,
-      revHistory: [] as Array<{ rev: string; val: number; discount: number; note: string; date: string }>
-    }
-  ]);
+  // Quotation lead creation form states
+  const [showCreateLeadForm, setShowCreateLeadForm] = useState(false);
+  const [leadFormData, setLeadFormData] = useState({
+    company: '',
+    contact: '',
+    baseValue: '',
+    phone: '',
+    productType: '',
+    source: 'Facebook / Line',
+    notes: ''
+  });
 
-  // Unified persistent database representation for Customer Master Rows with real-time Drive cancellation
-  const [customers, setCustomers] = useState([
-    { 
-      id: 'cust-1', 
-      name: 'Flora Cosmetic Paris', 
-      code: 'CUS-2026-001', 
-      address: 'Rue de la Paix, Paris', 
-      email: 'orders@floracosp.fr', 
-      folderName: 'Drive/Customers/CUS-2026-001_Flora_Cosmetics',
-      syncCancelled: true 
-    },
-    { 
-      id: 'cust-2', 
-      name: 'Mist & Glaze Bangkok', 
-      code: 'CUS-2026-002', 
-      address: 'สุขุมวิท 23 กรุงเทพฯ', 
-      email: 'sales@mistglaze.co.th', 
-      folderName: 'Drive/Customers/CUS-2026-002_Mist_Glaze',
-      syncCancelled: false 
-    },
-    { 
-      id: 'cust-3', 
-      name: 'Nirvana Organics Inc.', 
-      code: 'CUS-2026-003', 
-      address: 'Broadway NYC, USA', 
-      email: 'wholesale@nirvanaorg.com', 
-      folderName: 'Drive/Customers/CUS-2026-003_Nirvana_Organics',
-      syncCancelled: false 
+  // Pipeline Leads with Revision History state
+  const [leads, setLeads] = useState<any[]>([]);
+
+  // Synchronize leads from central dbState (Supabase or local JSON)
+  React.useEffect(() => {
+    if (dbState.leads && dbState.leads.length > 0) {
+      setLeads(dbState.leads);
+    } else {
+      setLeads([
+        { 
+          id: 'lead-1', 
+          company: 'Flora Cosmetic Paris', 
+          contact: 'Clarissa Fontaine', 
+          baseValue: 850000, 
+          value: 850000, 
+          stage: 'Proposal Sent', 
+          date: '2026-06-08', 
+          phone: '+33 655 0192', 
+          productType: 'Rose-Au-Gold Serum Premium',
+          revision: 0,
+          discountPct: 0,
+          revHistory: []
+        },
+        { 
+          id: 'lead-2', 
+          company: 'Mist & Glaze Bangkok', 
+          contact: 'คุณ วิภาวรรณ พัฒนาการ', 
+          baseValue: 420000, 
+          value: 420000, 
+          stage: 'Discussion', 
+          date: '2026-06-07', 
+          phone: '081-445-1200', 
+          productType: 'Centella Balancing Skin Toner',
+          revision: 0,
+          discountPct: 0,
+          revHistory: []
+        },
+        { 
+          id: 'lead-3', 
+          company: 'Nirvana Organics Inc.', 
+          contact: 'David Miller', 
+          baseValue: 1200000, 
+          value: 1200000, 
+          stage: 'Negotiation', 
+          date: '2026-06-05', 
+          phone: '+1 405 992 1010', 
+          productType: 'Premium Oud Diffuser',
+          revision: 0,
+          discountPct: 0,
+          revHistory: []
+        }
+      ]);
     }
-  ]);
+  }, [dbState.leads]);
+
+  // Unified persistent database representation for Customer Master Rows
+  const [customers, setCustomers] = useState<any[]>([]);
+
+  React.useEffect(() => {
+    if (dbState.customers && dbState.customers.length > 0) {
+      setCustomers(dbState.customers);
+    } else {
+      setCustomers([
+        { 
+          id: 'cust-1', 
+          name: 'Flora Cosmetic Paris', 
+          code: 'CUS-2026-001', 
+          address: 'Rue de la Paix, Paris', 
+          email: 'orders@floracosp.fr', 
+          folderName: 'Drive/Customers/CUS-2026-001_Flora_Cosmetics',
+          syncCancelled: true 
+        },
+        { 
+          id: 'cust-2', 
+          name: 'Mist & Glaze Bangkok', 
+          code: 'CUS-2026-002', 
+          address: 'สุขุมวิท 23 กรุงเทพฯ', 
+          email: 'sales@mistglaze.co.th', 
+          folderName: 'Drive/Customers/CUS-2026-002_Mist_Glaze',
+          syncCancelled: false 
+        },
+        { 
+          id: 'cust-3', 
+          name: 'Nirvana Organics Inc.', 
+          code: 'CUS-2026-003', 
+          address: 'Broadway NYC, USA', 
+          email: 'wholesale@nirvanaorg.com', 
+          folderName: 'Drive/Customers/CUS-2026-003_Nirvana_Organics',
+          syncCancelled: false 
+        }
+      ]);
+    }
+  }, [dbState.customers]);
 
   // Customer custom products registry
   const customerProductsMap: Record<string, Array<{ id: string; name: string; code: string; minOrder: number; costEstimate: number; activeIngredients: string; formulaId: string }>> = {
@@ -228,48 +260,126 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
     });
   };
 
-  const handleStageChange = (id: string, nextStage: string) => {
-    setLeads(prev => prev.map(l => l.id === id ? { ...l, stage: nextStage } : l));
+  const handleCreateLead = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!leadFormData.company || !leadFormData.productType || !leadFormData.baseValue) {
+      onNotify('กรุณากรอกข้อมูลหลักให้ครบถ้วนก่อนบันทึกใบเสนอราคา', 'warning');
+      return;
+    }
+
+    const valNum = Number(leadFormData.baseValue) || 0;
+    const newLead = {
+      id: `lead-${Date.now()}`,
+      company: leadFormData.company,
+      contact: leadFormData.contact || 'ไม่ระบุผู้ประสานงานหลัก',
+      baseValue: valNum,
+      value: valNum,
+      stage: 'Discussion',
+      date: new Date().toISOString().split('T')[0],
+      phone: leadFormData.phone || 'ไม่ระบุเบอร์ติดต่อ',
+      productType: leadFormData.productType,
+      source: leadFormData.source,
+      revision: 0,
+      discountPct: 0,
+      revHistory: []
+    };
+
+    try {
+      const res = await fetch('/api/generic/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'leads', item: newLead })
+      });
+      
+      if (res.ok) {
+        onNotify(`🎉 บันทึกใบเสนอราคาใหม่ของ ${leadFormData.company} ลงฐานข้อมูล Supabase และบอร์ดดีลสำเร็จ!`, 'info');
+        setShowCreateLeadForm(false);
+        setLeadFormData({
+          company: '',
+          contact: '',
+          baseValue: '',
+          phone: '',
+          productType: '',
+          source: 'Facebook / Line',
+          notes: ''
+        });
+        onRefresh();
+      } else {
+        throw new Error();
+      }
+    } catch (e) {
+      setLeads(prev => [newLead, ...prev]);
+      onNotify(`🎉 บันทึกใบเสนอราคาใหม่ลงใน Client State สำเร็จ!`, 'info');
+      setShowCreateLeadForm(false);
+    }
+  };
+
+  const handleStageChange = async (id: string, nextStage: string) => {
+    const found = leads.find(l => l.id === id);
+    if (!found) return;
+
+    const updatedItem = { ...found, stage: nextStage };
+    setLeads(prev => prev.map(l => l.id === id ? updatedItem : l));
     onNotify(`เลื่อนสิทธิ์บอร์ดคุณสมบัติเป็น: ${nextStage}`, 'info');
+
+    try {
+      await fetch('/api/generic/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'leads', item: updatedItem })
+      });
+      onRefresh();
+    } catch (err) {
+      // safe fallback
+    }
   };
 
   // Submit Quotation edit (revision)
-  const handleApplyRevision = (e: React.FormEvent) => {
+  const handleApplyRevision = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!revisingLeadId) return;
 
-    setLeads(prev => prev.map(l => {
-      if (l.id === revisingLeadId) {
-        const nextRev = l.revision + 1;
-        const revCode = `Rev.${String(nextRev).padStart(2, '0')}`;
-        const discAmount = l.baseValue * (newDiscount / 100);
-        const revisedVal = l.baseValue - discAmount;
-        
-        const historyRecord = {
-          rev: revCode,
-          val: revisedVal,
-          discount: newDiscount,
-          note: newNote,
-          date: new Date().toISOString().split('T')[0]
-        };
+    const found = leads.find(l => l.id === revisingLeadId);
+    if (!found) return;
 
-        const updatedHistory = [historyRecord, ...l.revHistory];
+    const nextRev = found.revision + 1;
+    const revCode = `Rev.${String(nextRev).padStart(2, '0')}`;
+    const discAmount = found.baseValue * (newDiscount / 100);
+    const revisedVal = found.baseValue - discAmount;
+    
+    const historyRecord = {
+      rev: revCode,
+      val: revisedVal,
+      discount: newDiscount,
+      note: newNote,
+      date: new Date().toISOString().split('T')[0]
+    };
 
-        onNotify(`📝 บันทึกประวัติการแก้ไขใบเสนอราคา ${revCode} (ส่วนลด ${newDiscount}%) สำเร็จ!`, 'info');
-        
-        return {
-          ...l,
-          revision: nextRev,
-          discountPct: newDiscount,
-          value: revisedVal,
-          revHistory: updatedHistory,
-          stage: 'Proposal Sent' // Move or retain
-        };
-      }
-      return l;
-    }));
+    const updatedHistory = [historyRecord, ...(found.revHistory || [])];
 
+    const updatedLead = {
+      ...found,
+      revision: nextRev,
+      discountPct: newDiscount,
+      value: revisedVal,
+      revHistory: updatedHistory,
+      stage: 'Proposal Sent' // Move or retain
+    };
+
+    setLeads(prev => prev.map(l => l.id === revisingLeadId ? updatedLead : l));
+    onNotify(`📝 บันทึกประวัติการแก้ไขใบเสนอราคา ${revCode} (ส่วนลด ${newDiscount}%) สำเร็จ!`, 'info');
     setRevisingLeadId(null);
+
+    try {
+      await fetch('/api/generic/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ table: 'leads', item: updatedLead })
+      });
+      onRefresh();
+    } catch (err) {
+      // safe fallback
+    }
   };
 
   const handleConvertLeadToContract = async (lead: any) => {
@@ -342,8 +452,11 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
   };
 
   // Helper variables for the active selected customer detail workspace
-  const currentCustomer = customers.find(c => c.id === selectedCustomerIdForDetail) || customers[0];
-  const currentCustProducts = customerProductsMap[currentCustomer.id] || [];
+  const currentCustomer = (customers && customers.length > 0)
+    ? (customers.find(c => c.id === selectedCustomerIdForDetail) || customers[0])
+    : { id: '', name: 'ไม่มีข้อมูล', code: '' };
+  
+  const currentCustProducts = currentCustomer.id ? (customerProductsMap[currentCustomer.id] || []) : [];
   
   // Set default product when customer changes so recipe view doesn't break
   React.useEffect(() => {
@@ -398,14 +511,141 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
                 ฝ่ายขายรับข้อมูล ดึงประเภทการติดต่อ หากลูกค้าขอแก้ไข สามารถใส่ส่วนลดออกโมเดล **Rev.01 / Rev.02** เก็บรักษาสลับประวัติย้อนหลังได้ทันที
               </p>
             </div>
-            <button 
-              type="button"
-              onClick={exportExcel}
-              className="p-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1"
-            >
-              <FileSpreadsheet className="w-4 h-4" /> ส่งออกบอร์ดดีล Excel
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setIsQuoteModalOpen(true)}
+                className="p-2 px-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
+              >
+                <FileText className="w-4 h-4" /> สร้างใบเสนอราคา (Supabase Quote)
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreateLeadForm(prev => !prev)}
+                className="p-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 cursor-pointer"
+              >
+                <PlusCircle className="w-4 h-4" /> ติดตามแก้ไขใบเดิม (+ Revise)
+              </button>
+              <button 
+                type="button"
+                onClick={exportExcel}
+                className="p-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-black flex items-center gap-1 transition-transform active:scale-95 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-4 h-4" /> ส่งออกบอร์ดดีล Excel
+              </button>
+            </div>
           </div>
+
+          {/* Create New Lead & Quotation Form */}
+          {showCreateLeadForm && (
+            <div className="bg-white border-2 border-indigo-600/55 p-6 rounded-3xl space-y-4 animate-fade-in shadow-lg">
+              <div className="flex justify-between items-center border-b border-indigo-100 pb-3">
+                <h5 className="font-extrabold text-[#0B3C5D] text-sm flex items-center gap-2">
+                  <PlusCircle className="w-5 h-5 text-indigo-600" />
+                  <span>สร้างใบเสนอราคาใหม่และเพิ่มลงระบบกระดานเจรจาดีล (Create New Quotation Lead)</span>
+                </h5>
+                <button 
+                  type="button" 
+                  onClick={() => setShowCreateLeadForm(false)} 
+                  className="p-1 px-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg text-slate-500 font-extrabold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" /> ปิดฟอร์ม
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateLead} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs text-slate-750">
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-800">1. ชื่อตราสินค้า / แบรนด์บริษัทผู้ตกลง (Brand/Company) <span className="text-red-500 font-black">*</span></label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="เช่น Flora Cosmetic France, Mist & Cream"
+                    value={leadFormData.company}
+                    onChange={(e) => setLeadFormData(p => ({ ...p, company: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 p-2.5 rounded-xl font-medium outline-none focus:border-indigo-500 focus:bg-white text-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-800">2. ผู้ติดต่อประสานงานหลัก (Contact Name)</label>
+                  <input 
+                    type="text" 
+                    placeholder="เช่น คุณวรรณิสา ธารทอง, Clarissa"
+                    value={leadFormData.contact}
+                    onChange={(e) => setLeadFormData(p => ({ ...p, contact: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 p-2.5 rounded-xl font-medium outline-none focus:border-indigo-500 focus:bg-white text-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-800">3. เบอร์ติดต่อส่งสัญญาณ (Phone Number)</label>
+                  <input 
+                    type="text" 
+                    placeholder="เช่น 089-xxx-xxxx"
+                    value={leadFormData.phone}
+                    onChange={(e) => setLeadFormData(p => ({ ...p, phone: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 p-2.5 rounded-xl font-medium outline-none focus:border-indigo-500 focus:bg-white text-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-800">4. ผลิตภัณฑ์ OEM ที่สนใจสั่งผลิต (Product Type) <span className="text-red-500 font-black">*</span></label>
+                  <input 
+                    type="text" 
+                    required
+                    placeholder="เช่น Premium Rose Serum, Aloe Vera Gel"
+                    value={leadFormData.productType}
+                    onChange={(e) => setLeadFormData(p => ({ ...p, productType: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 p-2.5 rounded-xl font-medium outline-none focus:border-indigo-500 focus:bg-white text-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-800">5. มูลค่าเป้าหมายดีลสัญญาเริ่มต้น (Target Value - ฿) <span className="text-red-500 font-black">*</span></label>
+                  <input 
+                    type="number" 
+                    required
+                    min="1"
+                    placeholder="เช่น 500000"
+                    value={leadFormData.baseValue}
+                    onChange={(e) => setLeadFormData(p => ({ ...p, baseValue: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 p-2.5 rounded-xl font-bold outline-none focus:border-indigo-500 focus:bg-white text-slate-900 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block font-bold text-slate-800">6. ช่องทางประชาสัมพันธ์หลัก (Leads Source)</label>
+                  <select
+                    value={leadFormData.source}
+                    onChange={(e) => setLeadFormData(p => ({ ...p, source: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 p-2.5 rounded-xl font-bold outline-none focus:border-indigo-500 focus:bg-white text-[#111827]"
+                  >
+                    <option value="Facebook / Line">Facebook / Line Ads</option>
+                    <option value="Direct Call">Direct Telephone Call</option>
+                    <option value="Agency Referral">Agency Referral Partner</option>
+                    <option value="Website Portal">Website Landing Form</option>
+                    <option value="In-Person Meet">In-Person Exhibition Meet</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-3 pt-3 flex justify-end gap-2 border-t border-slate-100">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowCreateLeadForm(false)}
+                    className="p-2.5 px-5 bg-slate-150 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl transition cursor-pointer"
+                  >
+                    ยกเลิก (Cancel)
+                  </button>
+                  <button 
+                    type="submit"
+                    className="p-2.5 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl shadow-md transition flex items-center gap-1.5 active:scale-95 cursor-pointer"
+                  >
+                    <Check className="w-4 h-4" /> ยืนยันบันทึกใบเสนอราคา (Submit & Save to Supabase SQL)
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
 
           {/* Revise dialog sheet */}
           {revisingLeadId && (
@@ -626,8 +866,8 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
           
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             
-            {/* Left section: Customers registry master list */}
-            <div className="lg:col-span-2 space-y-4">
+            {/* Left section: Customers registry master list - expanded to span full 3 columns */}
+            <div className="lg:col-span-3 space-y-4">
               <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
                 
                 <div className="flex justify-between items-center border-b border-slate-100 pb-3 flex-wrap gap-2">
@@ -750,41 +990,6 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
                   </table>
                 </div>
 
-              </div>
-            </div>
-
-            {/* Right section: Quick action card to view or create drive */}
-            <div className="lg:col-span-1 space-y-4">
-              <div className="bg-gradient-to-br from-[#0B3C5D] to-[#0d4f7c] p-6 rounded-3xl text-white space-y-4 shadow-md text-xs">
-                <div className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-indigo-300" />
-                  <h4 className="font-extrabold text-sm tracking-tight text-white">ระบบเชื่อมคลาวด์ไดรฟ์สากล (DMS Link)</h4>
-                </div>
-                <p className="font-medium text-indigo-200 leading-relaxed">
-                  เมื่อฝ่ายขายลงทะเบียนลูกค้าระบบจะวางแมปสร้างแชร์ไดเรกทอรีให้อัตโนมัติในสระระบบ <code>Drive/Customers/รหัสลูกค้า_ชื่อแบรนด์</code>
-                </p>
-
-                <div className="bg-[#072438] p-3 rounded-2xl border border-indigo-900 space-y-2 font-mono text-[11px] text-indigo-150">
-                  <p className="font-black text-white border-b border-indigo-900 pb-1 flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-yellow-400" />
-                    พิกัดเฝ้าระวังสิทธิ์ปัจจุบัน:
-                  </p>
-                  <div>
-                    <span className="text-xs text-slate-400">พารามิเตอร์ Flora CUS-2026-001:</span>
-                    <p className="text-red-400 font-bold mt-0.5">● CANCELLED / UN-SYNCED</p>
-                    <p className="text-[10px] text-slate-500 italic mt-0.5">การยกเลิก Sync เพื่อหลีกเลี่ยงสแปมประวัติเก็บบัญชีภายนอก</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onNotify('สแกนระบบรักษาความปลอดภัยกับ Active Directory ข้ามไดรฟ์ สำเร็จ 100%', 'info')}
-                    className="w-full bg-white text-[#0B3C5D] hover:bg-slate-50 font-black py-2.5 rounded-xl text-center"
-                  >
-                    ตรวจสอบความคุ้มครองระบบ 🛡️
-                  </button>
-                </div>
               </div>
             </div>
 
@@ -971,6 +1176,16 @@ export default function CRM_OS({ dbState, onRefresh, onNotify, userRole }: CRM_O
           </div>
         </div>
       )}
+
+      {/* Quote Form Modal (Supabase integrated) */}
+      <QuoteFormModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        onRefresh={onRefresh}
+        onNotify={onNotify}
+        customersList={dbState.customers}
+        productsList={dbState.products}
+      />
 
     </div>
   );

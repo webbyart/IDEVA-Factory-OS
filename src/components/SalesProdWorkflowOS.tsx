@@ -5,6 +5,7 @@ import {
   RefreshCw, FileText, ExternalLink, Database, Cpu, HelpCircle, FileCheck2, Trash2
 } from 'lucide-react';
 import GoogleSheetDataGrid, { ColumnConfig } from './GoogleSheetDataGrid';
+import QuoteFormModal from './QuoteFormModal';
 
 interface SalesProdWorkflowProps {
   dbState: any;
@@ -16,6 +17,8 @@ interface SalesProdWorkflowProps {
 export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, userRole }: SalesProdWorkflowProps) {
   // Navigation
   const [activeSegment, setActiveSegment] = useState<'sales' | 'production' | 'packaging' | 'gmp-coa' | 'appsheet-sync'>('sales');
+
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
 
   // Customer Management states
   const [customerSearch, setCustomerSearch] = useState('');
@@ -154,14 +157,14 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
     { key: 'customerName', label: 'ลูกค้า', type: 'text', readOnly: true },
     { key: 'productName', label: 'สินค้า', type: 'text', readOnly: true },
     { key: 'quantityRequested', label: 'จำนวนสั่งผลิต (Pcs)', type: 'number' },
-    { key: 'status', label: 'สถานะ', type: 'select', options: ['Pending Planning', 'Released to Production', 'Active', 'Completed', 'Deficient Raw Materials'] },
+    { key: 'status', label: 'สถานะ', type: 'select', options: ['รอดำเนินการ', 'กำลังผลิต', 'เสร็จสิ้น', 'วัตถุดิบไม่พอ', 'Pending Planning', 'Active', 'Completed', 'Deficient Raw Materials'] },
     { key: 'createdAt', label: 'วันที่เจรจาจ๊อบ', type: 'date', readOnly: true }
   ], []);
 
   const formattedJobs = useMemo(() => {
     return (dbState.salesJobs || []).map((j: any) => {
-      const cust = dbState.customers?.find((c: any) => c.id === j.customerId);
-      const prod = dbState.products?.find((p: any) => p.id === j.productId);
+      const cust = dbState.customers?.find((c: any) => c?.id === j?.customerId);
+      const prod = dbState.products?.find((p: any) => p?.id === j?.productId);
       return {
         ...j,
         customerName: cust ? `${cust.name} (${cust.code})` : `ทั่วไป (${j.customerCode || ''})`,
@@ -325,6 +328,33 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
         onRefresh();
       } else {
         onNotify(`ไม่สามารถบันทึกข้อมูลย้อนหลังได้`, 'error');
+      }
+    } catch {
+      onNotify(`การสื่อสารกับเซิร์ฟเวอร์กลางล้มเหลว`, 'error');
+    }
+  };
+
+  // Handle deletion of job rows
+  const handleDeleteJob = async (jobId: string) => {
+    if (!window.confirm(`⚠️ คุณแน่ใจหรือไม่ที่จะลบใบผลิตจ๊อบนี้เป็นการถาวรออกจาก Supabase? (ID: ${jobId})`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/generic/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'salesJobs',
+          id: jobId
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        onNotify(`[SUCCESS] ลบรายการใบจ๊อบสำเร็จเรียบร้อย!`, 'warning');
+        onRefresh();
+      } else {
+        onNotify(data.error || `ไม่สามารถลบข้อมูลจ๊อบได้`, 'error');
       }
     } catch {
       onNotify(`การสื่อสารกับเซิร์ฟเวอร์กลางล้มเหลว`, 'error');
@@ -655,6 +685,13 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
           
           <div className="flex items-center gap-2">
             <button
+              onClick={() => setIsQuoteModalOpen(true)}
+              className="p-2 px-3.5 bg-teal-600 hover:bg-teal-700 rounded-lg text-xs font-bold text-white flex items-center gap-1.5 shadow-sm shadow-teal-500/10 transition-all cursor-pointer"
+            >
+              <FileText className="h-4 w-4" />
+              สร้างใบเสนอราคา (Create Quote)
+            </button>
+            <button
               onClick={onRefresh}
               className="p-2 border border-[#E5E5EA] bg-neutral-50 hover:bg-neutral-100 rounded-lg text-xs font-semibold text-[#1D1D1F] flex items-center gap-1.5"
             >
@@ -897,6 +934,7 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
                   columns={gridColumns}
                   data={formattedJobs}
                   onUpdateRow={handleUpdateJob}
+                  onDeleteRow={handleDeleteJob}
                 />
 
                 <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 text-xs">
@@ -2959,6 +2997,16 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
           </div>
         </div>
       )}
+
+      {/* Quote Form Modal (Supabase integrated) */}
+      <QuoteFormModal
+        isOpen={isQuoteModalOpen}
+        onClose={() => setIsQuoteModalOpen(false)}
+        onRefresh={onRefresh}
+        onNotify={onNotify}
+        customersList={dbState.customers}
+        productsList={dbState.products}
+      />
 
     </div>
   );

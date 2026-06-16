@@ -116,7 +116,7 @@ export default function GoogleSheetDataGrid({
 
   // Filter & Sort computation
   const processedData = useMemo(() => {
-    let result = [...data];
+    let result = (data || []).filter(row => row && typeof row === 'object');
 
     // 1. Global Search
     if (globalSearch) {
@@ -382,24 +382,25 @@ export default function GoogleSheetDataGrid({
         <table className="w-full border-collapse text-xs select-text table-fixed min-w-[750px]">
           <thead>
             {/* Sticky table column labels mapped like Excel alphabet indices */}
-            <tr className="bg-slate-100 text-[#86868B] font-mono border-b border-slate-200">
-              <th className="w-14 text-center py-1 font-semibold select-none bg-slate-150 border-r border-slate-200">#</th>
+            <tr className="bg-slate-105 text-[#86868B] font-mono border-b border-slate-200">
+              <th style={{ position: 'sticky', top: 0, zIndex: 12 }} className="w-14 text-center py-1 font-semibold select-none bg-slate-150 border-r border-slate-200">#</th>
               {columns.filter(c => !hiddenColumns[c.key]).map((col, idx) => (
-                <th key={col.key} className="px-3 py-1 font-bold tracking-wider text-center border-r border-slate-200 select-none">
+                <th key={col.key} style={{ position: 'sticky', top: 0, zIndex: 12 }} className="px-3 py-1 font-bold tracking-wider text-center border-r border-slate-200 select-none bg-slate-100">
                   {String.fromCharCode(65 + idx)}
                 </th>
               ))}
-              {onDeleteRow && <th className="w-20 select-none text-center bg-slate-150 border-r border-slate-200">🗑️</th>}
+              {onDeleteRow && <th style={{ position: 'sticky', top: 0, zIndex: 12 }} className="w-20 select-none text-center bg-slate-150 border-r border-slate-200">🗑️</th>}
             </tr>
 
             {/* Core Header row labeled in dark blue as requested */}
             <tr className="bg-[#0B3C5D] text-white border-b border-indigo-950 text-left">
-              <th className="w-14 text-center select-none font-bold py-3 border-r border-indigo-900">No.</th>
+              <th style={{ position: 'sticky', top: 24, zIndex: 12 }} className="w-14 text-center select-none font-bold py-3 border-r border-indigo-900 bg-[#0B3C5D]">No.</th>
               {columns.filter(c => !hiddenColumns[c.key]).map(col => (
                 <th 
                   key={col.key} 
                   onClick={() => handleSort(col.key)}
-                  className="px-4 py-3 font-black text-xs border-r border-indigo-900 cursor-pointer select-none group relative hover:bg-[#072438]"
+                  style={{ position: 'sticky', top: 24, zIndex: 12 }}
+                  className="px-4 py-3 font-black text-xs border-r border-indigo-900 cursor-pointer select-none group relative hover:bg-[#072438] bg-[#0B3C5D]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span className="text-white font-extrabold">{col.label}</span>
@@ -408,7 +409,7 @@ export default function GoogleSheetDataGrid({
                   <span className="text-[9px] font-mono font-medium block text-indigo-200/70">[{col.key}]</span>
                 </th>
               ))}
-              {onDeleteRow && <th className="w-20 text-center font-bold border-r border-indigo-900 select-none">ควบคุมถอน</th>}
+              {onDeleteRow && <th style={{ position: 'sticky', top: 24, zIndex: 12 }} className="w-20 text-center font-bold border-r border-indigo-900 select-none bg-[#0B3C5D]">ควบคุมถอน</th>}
             </tr>
 
             {/* Optional individual Column filters row */}

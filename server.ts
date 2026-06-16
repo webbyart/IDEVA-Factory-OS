@@ -197,6 +197,7 @@ const TABLE_MAPPINGS: Record<string, { table: string }> = {
   payslips: { table: "payslips" },
   transactions: { table: "account_transactions" },
   auditLogs: { table: "audit_logs" },
+  quotes: { table: "quotes" },
 };
 
 const TABLE_COLUMNS: Record<string, string[]> = {
@@ -221,7 +222,8 @@ const TABLE_COLUMNS: Record<string, string[]> = {
   payroll_periods: ["id", "period_name", "start_date", "end_date", "status"],
   payslips: ["id", "payroll_period_id", "employee_id", "base_salary", "ot_pay", "allowance_sum", "bonus", "sso_deduction", "tax_deduction", "net_pay", "pdf_generated"],
   account_transactions: ["id", "date", "type", "category", "amount", "description"],
-  audit_logs: ["id", "user", "role", "action", "timestamp", "module"]
+  audit_logs: ["id", "user", "role", "action", "timestamp", "module"],
+  quotes: ["id", "customer_name", "product_name", "quantity", "price", "notes", "created_at"]
 };
 
 async function fetchTableDirect(tableName: string): Promise<any[]> {
@@ -256,31 +258,34 @@ async function syncCollectionToSupabase(stateKey: string, items: any[]) {
     const cleanUrl = SUPABASE_URL.replace(/\/$/, "");
     const url = `${cleanUrl}/${dbTable}`;
 
-    const rowsToUpsert = items.map(item => {
-      let mapped = { ...item };
-      
-      // Special conversions
-      if (stateKey === "manufacturingOrders" && item.costSummary) {
-        mapped.materialCost = item.costSummary.materialCost;
-        mapped.packagingCost = item.costSummary.packagingCost;
-        mapped.laborCost = item.costSummary.laborCost;
-        mapped.overheadCost = item.costSummary.overheadCost;
-        mapped.lossCost = item.costSummary.lossCost;
-        mapped.totalCost = item.costSummary.totalCost || item.totalCost;
-        mapped.costPerPiece = item.costSummary.costPerPiece || item.costPerPiece;
-      }
-
-      const snakeObj = toSnake(mapped);
-      
-      // Filter columns
-      const filtered: any = {};
-      allowedCols.forEach(col => {
-        if (snakeObj[col] !== undefined) {
-          filtered[col] = snakeObj[col];
+    // Filter out null or invalid elements, then map each to a fully standardized object
+    const rowsToUpsert = items
+      .filter((item): item is any => item !== null && typeof item === "object")
+      .map(item => {
+        let mapped = { ...item };
+        
+        // Special conversions
+        if (stateKey === "manufacturingOrders" && item.costSummary) {
+          mapped.materialCost = item.costSummary.materialCost;
+          mapped.packagingCost = item.costSummary.packagingCost;
+          mapped.laborCost = item.costSummary.laborCost;
+          mapped.overheadCost = item.costSummary.overheadCost;
+          mapped.lossCost = item.costSummary.lossCost;
+          mapped.totalCost = item.costSummary.totalCost || item.totalCost;
+          mapped.costPerPiece = item.costSummary.costPerPiece || item.costPerPiece;
         }
+
+        const snakeObj = toSnake(mapped);
+        
+        // Clean out and ensure all allowedColumns are present in the exact same index order
+        const filtered: any = {};
+        allowedCols.forEach(col => {
+          const val = snakeObj[col];
+          // Explicitly map undefined or null to null, otherwise keep the value
+          filtered[col] = (val === undefined || val === null) ? null : val;
+        });
+        return filtered;
       });
-      return filtered;
-    });
 
     if (rowsToUpsert.length === 0) return;
 
@@ -318,9 +323,7 @@ async function syncFormulasToSupabase(formulas: any[]) {
       const snakeObj = toSnake(f);
       const filtered: any = {};
       TABLE_COLUMNS.formula_headers.forEach(col => {
-        if (snakeObj[col] !== undefined) {
-          filtered[col] = snakeObj[col];
-        }
+        filtered[col] = snakeObj[col] !== undefined ? snakeObj[col] : null;
       });
       return filtered;
     });
@@ -650,7 +653,10 @@ let dbState: any = {
   ],
   salesJobs: [],
   coaRecords: [],
-  packagingLotLogs: []
+  packagingLotLogs: [],
+  leads: [],
+  quotations: [],
+  quotes: []
 };
 
 // Automation helper to generate notifications & audit logs
@@ -1954,6 +1960,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 -- Clean existing entities
+DROP TABLE IF EXISTS quotes CASCADE;
 DROP TABLE IF EXISTS account_transactions CASCADE;
 DROP TABLE IF EXISTS payslips CASCADE;
 DROP TABLE IF EXISTS payroll_periods CASCADE;
@@ -2220,6 +2227,16 @@ CREATE TABLE account_transactions (
     description VARCHAR(255) NOT NULL
 );
 
+CREATE TABLE quotes (
+    id VARCHAR(50) PRIMARY KEY,
+    customer_name VARCHAR(255) NOT NULL,
+    product_name VARCHAR(255) NOT NULL,
+    quantity NUMERIC(12,2) NOT NULL,
+    price NUMERIC(12,2) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- INDEXES FOR ENTERPRISE RESOLUTION SPEED --
 CREATE INDEX idx_emp_dept ON employees(department_id);
 CREATE INDEX idx_formula_product ON formula_headers(product_id);
@@ -2252,6 +2269,7 @@ ALTER TABLE public.payroll_periods DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payslips DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.account_transactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.quotes DISABLE ROW LEVEL SECURITY;
 
 -- SEED STATEMENTS INSERT --
 INSERT INTO roles VALUES ('role-admin', 'Admin', ARRAY['Production', 'Maintenance', 'HR', 'Accounting', 'Developer']);
