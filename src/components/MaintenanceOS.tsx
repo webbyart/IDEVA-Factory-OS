@@ -15,7 +15,13 @@ interface MaintenanceOSProps {
 }
 
 export default function MaintenanceOS({ dbState, onRefresh, onNotify, userRole }: MaintenanceOSProps) {
-  const [activeMntTab, setActiveMntTab] = useState<'registry' | 'repairs' | 'pm' | 'spares'>('registry');
+  const [activeMntTab, setActiveMntTab] = useState<'registry' | 'repairs' | 'pm' | 'spares' | 'calendar'>('calendar');
+  
+  // States for Calendar View
+  const [calYear, setCalYear] = useState<number>(2026);
+  const [calMonth, setCalMonth] = useState<number>(5); // 0-indexed, 5 = June 2026
+  const [calendarFilter, setCalendarFilter] = useState<'all' | 'pm' | 'downtime'>('all');
+  const [selectedCalendarEvent, setSelectedCalendarEvent] = useState<any | null>(null);
   
   // Selected machine for simulated scan
   const [scannedMachineId, setScannedMachineId] = useState<string | null>(null);
@@ -192,6 +198,13 @@ export default function MaintenanceOS({ dbState, onRefresh, onNotify, userRole }
           className={`flex-1 py-1.5 px-3 rounded-lg font-medium text-xs transition-all whitespace-nowrap ${activeMntTab === 'pm' ? 'bg-white text-[#1D1D1F] shadow-sm font-semibold' : 'text-[#86868B] hover:text-[#1D1D1F]'}`}
         >
           แผนป้องกันเชิงป้องกัน (PM Tracker)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveMntTab('calendar')}
+          className={`flex-1 py-1.5 px-3 rounded-lg font-medium text-xs transition-all whitespace-nowrap ${activeMntTab === 'calendar' ? 'bg-white text-rose-600 shadow-sm font-semibold flex items-center justify-center gap-1' : 'text-[#86868B] hover:text-[#1D1D1F]'}`}
+        >
+          📅 ปฏิทินงาน PM & Downtime
         </button>
         <button
           type="button"
@@ -562,6 +575,551 @@ export default function MaintenanceOS({ dbState, onRefresh, onNotify, userRole }
             </div>
           </div>
         )}
+
+        {/* Tab 5: Dynamic PM & Downtime Calendar View */}
+        {activeMntTab === 'calendar' && (() => {
+          const thaiMonths = [
+            'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+            'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+          ];
+          
+          const handlePrevMonth = () => {
+            if (calMonth === 0) {
+              setCalMonth(11);
+              setCalYear(prev => prev - 1);
+            } else {
+              setCalMonth(prev => prev - 1);
+            }
+          };
+          
+          const handleNextMonth = () => {
+            if (calMonth === 11) {
+              setCalMonth(0);
+              setCalYear(prev => prev + 1);
+            } else {
+              setCalMonth(prev => prev + 1);
+            }
+          };
+          
+          const formatDateStr = (year: number, month: number, day: number) => {
+            const mm = String(month + 1).padStart(2, '0');
+            const dd = String(day).padStart(2, '0');
+            return `${year}-${mm}-${dd}`;
+          };
+          
+          const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+          const firstDayIndex = new Date(calYear, calMonth, 1).getDay();
+          
+          const prevMonthIndex = calMonth === 0 ? 11 : calMonth - 1;
+          const prevYearIndex = calMonth === 0 ? calYear - 1 : calYear;
+          const daysInPrevMonth = new Date(prevYearIndex, prevMonthIndex + 1, 0).getDate();
+          
+          const calendarCells = [];
+          
+          // Prev month padding
+          for (let i = firstDayIndex - 1; i >= 0; i--) {
+            calendarCells.push({
+              day: daysInPrevMonth - i,
+              month: prevMonthIndex,
+              year: prevYearIndex,
+              isCurrentMonth: false
+            });
+          }
+          
+          // Current month
+          for (let i = 1; i <= daysInMonth; i++) {
+            calendarCells.push({
+              day: i,
+              month: calMonth,
+              year: calYear,
+              isCurrentMonth: true
+            });
+          }
+          
+          // Next month padding
+          const remainingSlots = 42 - calendarCells.length;
+          const nextMonthIndex = calMonth === 11 ? 0 : calMonth + 1;
+          const nextYearIndex = calMonth === 11 ? calYear + 1 : calYear;
+          for (let i = 1; i <= remainingSlots; i++) {
+            calendarCells.push({
+              day: i,
+              month: nextMonthIndex,
+              year: nextYearIndex,
+              isCurrentMonth: false
+            });
+          }
+          
+          const allPMs = dbState.pmTasks || [];
+          const allRepairs = dbState.repairTickets || [];
+          
+          const currentMonthPMs = allPMs.filter((pm: any) => {
+            if (!pm.dueBy) return false;
+            const pmDate = new Date(pm.dueBy);
+            return pmDate.getFullYear() === calYear && pmDate.getMonth() === calMonth;
+          });
+          
+          const currentMonthRepairs = allRepairs.filter((rt: any) => {
+            const dateStr = rt.createdAt || rt.created_at;
+            if (!dateStr) return false;
+            const rtDate = new Date(dateStr);
+            return rtDate.getFullYear() === calYear && rtDate.getMonth() === calMonth;
+          });
+          
+          const activePMCount = currentMonthPMs.filter((pm: any) => pm.status !== 'Completed').length;
+          const activeDowntimeCount = currentMonthRepairs.filter((rt: any) => rt.status !== 'Resolved').length;
+
+          return (
+            <div className="space-y-6 animate-fade-in" id="maintenance-scheduler-calendar-widget">
+              {/* Stats Hub Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="bg-indigo-50 border border-indigo-150 p-4 rounded-2xl flex items-center gap-3">
+                  <div className="p-3 bg-indigo-600 rounded-xl text-white">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">งาน PM ประจำเดือน</h5>
+                    <p className="text-xl font-black text-indigo-900">{currentMonthPMs.length} <span className="text-xs font-semibold text-indigo-500">งานทั้งหมด ({activePMCount} รอเคลียร์)</span></p>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border border-red-150 p-4 rounded-2xl flex items-center gap-3">
+                  <div className="p-3 bg-red-600 rounded-xl text-white">
+                    <AlertCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-bold text-red-400 uppercase tracking-widest">การหยุดเครื่องกะทันหัน (Downtime)</h5>
+                    <p className="text-xl font-black text-red-900">{currentMonthRepairs.length} <span className="text-xs font-semibold text-red-500">เคสซ่อม ({activeDowntimeCount} เปิดค้าง)</span></p>
+                  </div>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-150 p-4 rounded-2xl flex items-center gap-3">
+                  <div className="p-3 bg-emerald-600 rounded-xl text-white">
+                    <Wrench className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h5 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">สถานะเครื่องจักรโดยรวม</h5>
+                    <p className="text-lg font-black text-emerald-900">
+                      {dbState.machines && dbState.machines.length > 0 
+                        ? `${dbState.machines.filter((m: any) => m.status === 'Online' || m.status === 'Running').length} / ${dbState.machines.length} เครื่องเปิดทำงานปกติ`
+                        : 'ไม่พบบัญชีเครื่องจักร'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Main Calendar Core UI */}
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
+                <div className="bg-slate-50 p-4 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handlePrevMonth}
+                      className="p-2 hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-700 font-bold active:scale-95 transition-all text-xs"
+                    >
+                      &larr; เดือนก่อน
+                    </button>
+                    <span className="text-sm font-black text-slate-800 min-w-[140px] text-center">
+                      {thaiMonths[calMonth]} {calYear + 543}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleNextMonth}
+                      className="p-2 hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-700 font-bold active:scale-95 transition-all text-xs"
+                    >
+                      เดือนถัดไป &rarr;
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setCalYear(2026); setCalMonth(5); }}
+                      className="ml-2 text-[10.5px] px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 rounded-lg text-slate-700 font-bold transition-all"
+                    >
+                      กลับเดือนปัจจุบัน
+                    </button>
+                  </div>
+
+                  {/* Calendar Filters tag row */}
+                  <div className="flex bg-slate-200 p-0.5 rounded-xl border border-slate-300 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => setCalendarFilter('all')}
+                      className={`px-3 py-1.5 text-[11px] rounded-lg font-bold transition-all ${calendarFilter === 'all' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                    >
+                      แสดงทั้งหมด ({currentMonthPMs.length + currentMonthRepairs.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarFilter('pm')}
+                      className={`px-3 py-1.5 text-[11px] rounded-lg font-bold transition-all ${calendarFilter === 'pm' ? 'bg-indigo-650 text-white shadow-xs' : 'text-slate-600 hover:text-indigo-650'}`}
+                    >
+                      🛠️ งาน PM ({currentMonthPMs.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCalendarFilter('downtime')}
+                      className={`px-3 py-1.5 text-[11px] rounded-lg font-bold transition-all ${calendarFilter === 'downtime' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:text-rose-600'}`}
+                    >
+                      ⚠️ เครื่องเสีย ({currentMonthRepairs.length})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-slate-200 font-sans">
+                  {/* Calendar main panel (7-col grid layout) */}
+                  <div className="lg:col-span-3 p-4 overflow-x-auto">
+                    <div className="min-w-[650px]">
+                      {/* Grid Header days of the week */}
+                      <div className="grid grid-cols-7 gap-1 text-center font-mono text-[10.5px] font-bold text-slate-400 pb-2 border-b border-slate-100">
+                        <div className="text-red-500 py-1">อาทิตย์ (SUN)</div>
+                        <div className="py-1">จันทร์ (MON)</div>
+                        <div className="py-1">อังคาร (TUE)</div>
+                        <div className="py-1">พุธ (WED)</div>
+                        <div className="py-1">พฤหัสฯ (THU)</div>
+                        <div className="py-1 text-emerald-600">ศุกร์ (FRI)</div>
+                        <div className="py-1">เสาร์ (SAT)</div>
+                      </div>
+
+                      {/* Days numbers with events inside cells */}
+                      <div className="grid grid-cols-7 gap-1.5 pt-2.5">
+                        {calendarCells.map((cell: any, index: number) => {
+                          const cellDateStr = formatDateStr(cell.year, cell.month, cell.day);
+                          const isTodayStr = cellDateStr === '2026-06-15';
+
+                          // Search matching events
+                          const pmRuns = allPMs.filter((pm: any) => pm.dueBy === cellDateStr);
+                          const repairRuns = allRepairs.filter((rt: any) => {
+                            const dateStr = rt.createdAt || rt.created_at;
+                            return dateStr && dateStr.startsWith(cellDateStr);
+                          });
+
+                          const pmFiltered = calendarFilter === 'downtime' ? [] : pmRuns;
+                          const repairFiltered = calendarFilter === 'pm' ? [] : repairRuns;
+
+                          return (
+                            <div
+                              key={index}
+                              className={`min-h-[105px] p-2 rounded-xl border flex flex-col justify-between transition-all overflow-hidden ${
+                                cell.isCurrentMonth
+                                  ? isTodayStr
+                                    ? 'bg-rose-50/70 border-rose-400 ring-2 ring-rose-300 ring-offset-1'
+                                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                                  : 'bg-slate-50/50 border-slate-150 text-slate-350 bg-[repeating-linear-gradient(-45deg,#f8fafc,#f8fafc_5px,#f1f5f9_5px,#f1f5f9_10px)]'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center mb-1">
+                                <span className={`text-[11px] font-mono font-black ${
+                                  isTodayStr
+                                    ? 'bg-rose-600 text-white w-5.5 h-5.5 rounded-full inline-flex items-center justify-center shadow-xs'
+                                    : cell.isCurrentMonth ? 'text-slate-800' : 'text-slate-350'
+                                }`}>
+                                  {cell.day}
+                                </span>
+                                {isTodayStr && (
+                                  <span className="text-[8px] bg-rose-100 text-rose-700 font-black px-1 rounded uppercase tracking-wider scale-90">TODAY</span>
+                                )}
+                              </div>
+
+                              <div className="space-y-1 mt-1 flex-1 overflow-y-auto max-h-[85px] no-scrollbar">
+                                {pmFiltered.map((pm: any) => {
+                                  const machine = dbState.machines?.find((m: any) => m.id === pm.machineId);
+                                  return (
+                                    <button
+                                      key={pm.id}
+                                      type="button"
+                                      onClick={() => setSelectedCalendarEvent({ type: 'pm', data: pm })}
+                                      className={`w-full text-left text-[9px] px-1 py-0.5 rounded border block truncate transition-transform hover:scale-95 font-bold cursor-pointer ${
+                                        pm.status === 'Completed'
+                                          ? 'bg-slate-100 border-slate-300 text-slate-500 line-through'
+                                          : pm.status === 'Overdue'
+                                            ? 'bg-red-50 border-red-200 text-red-700 animate-pulse'
+                                            : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                                      }`}
+                                      title={`[PM] ${pm.title} (${machine?.name || pm.machineId})`}
+                                    >
+                                      🛠️ {pm.title}
+                                    </button>
+                                  );
+                                })}
+
+                                {repairFiltered.map((rt: any) => {
+                                  const machine = dbState.machines?.find((m: any) => m.id === rt.machineId);
+                                  return (
+                                    <button
+                                      key={rt.id}
+                                      type="button"
+                                      onClick={() => setSelectedCalendarEvent({ type: 'repair', data: rt })}
+                                      className={`w-full text-left text-[9px] px-1 py-0.5 rounded border block truncate transition-transform hover:scale-95 font-black cursor-pointer ${
+                                        rt.status === 'Resolved'
+                                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                          : rt.priority === 'Critical'
+                                            ? 'bg-red-100 border-red-300 text-red-850 animate-pulse'
+                                            : 'bg-rose-50 border-rose-200 text-rose-700'
+                                      }`}
+                                      title={`[ซ่อม] ${rt.description} (${machine?.name || rt.machineId})- Priority ${rt.priority}`}
+                                    >
+                                      🚨 {rt.description}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Monthly Agenda List panel sidebar */}
+                  <div className="p-4 bg-slate-50/50 flex flex-col justify-between space-y-4 font-sans">
+                    <div className="space-y-4">
+                      <div className="border-b border-slate-200 pb-2">
+                        <h4 className="font-bold text-xs text-slate-800 uppercase tracking-widest flex items-center gap-1.5 font-sans">
+                          📝 ลำดับเวลา (Month Agenda Timeline)
+                        </h4>
+                        <p className="text-[10px] text-slate-500 mt-0.5">กิจกรรมและแผนเครื่องจักรรอบเดือนนี้เรียงตามลำดับวัน</p>
+                      </div>
+
+                      <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                        {currentMonthPMs.length === 0 && currentMonthRepairs.length === 0 ? (
+                          <div className="py-8 text-center text-slate-400 font-sans">
+                            <span className="text-xl block mb-1">📭</span>
+                            <span className="text-[10.5px]">ไม่มีกำหนดงานในเดือนนี้</span>
+                          </div>
+                        ) : (
+                          [...currentMonthPMs.map(pm => ({ date: pm.dueBy, type: 'pm', item: pm })), 
+                           ...currentMonthRepairs.map(rt => ({ date: (rt.createdAt || rt.created_at).split('T')[0], type: 'repair', item: rt }))]
+                            .sort((a, b) => a.date.localeCompare(b.date))
+                            .map((entry, idx) => {
+                              const d = entry.item;
+                              const machine = dbState.machines?.find((m: any) => m.id === d.machineId);
+                              return (
+                                <div 
+                                  key={idx} 
+                                  onClick={() => setSelectedCalendarEvent({ type: entry.type, data: d })}
+                                  className={`p-2.5 rounded-xl border bg-white shadow-xs cursor-pointer hover:border-slate-400 transition-all space-y-1 ${
+                                    entry.type === 'pm' 
+                                      ? 'border-indigo-120 hover:bg-indigo-50/10' 
+                                      : 'border-red-120 hover:bg-rose-50/10'
+                                  }`}
+                                >
+                                  <div className="flex justify-between items-center">
+                                    <span className="text-[9.5px] font-bold font-mono text-slate-500 bg-slate-100 px-1 py-0.5 rounded border border-slate-200">
+                                      {entry.date}
+                                    </span>
+                                    <span className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded uppercase ${
+                                      entry.type === 'pm' 
+                                        ? d.status === 'Completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-100 text-indigo-700' 
+                                        : d.status === 'Resolved' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                                    }`}>
+                                      {entry.type === 'pm' ? '🛠️ PM' : '⚠️ ซ่อม'}
+                                    </span>
+                                  </div>
+                                  <h5 className="font-bold text-xs text-slate-800 line-clamp-1">{entry.type === 'pm' ? d.title : d.description}</h5>
+                                  <p className="text-[9.5px] text-slate-500 font-mono">Asset: {machine ? machine.name : d.machineId}</p>
+                                </div>
+                              );
+                            })
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl space-y-1 text-slate-700 text-[10px]/relaxed font-sans">
+                      <strong className="font-bold text-indigo-950 block">💡 แนะนำ: ดับเบิ้ลคลิก/กดเพื่อแก้ไขข้อมูล</strong>
+                      <span>ท่านสามารถกดที่ป้ายงานสีใดก็ได้ในปฏิทินเพื่อกระตุ้น Action ปิดเคสซ่อมใบงาน PM หรือเคลียร์สิงตกค้างเพื่อ Sync ข้อมูลลงสู่ Supabase SQL แบบ Realtime ทันที</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Popup dialog for Event Actions details */}
+              {selectedCalendarEvent && (() => {
+                const isPM = selectedCalendarEvent.type === 'pm';
+                const d = selectedCalendarEvent.data;
+                const machine = dbState.machines?.find((m: any) => m.id === d.machineId);
+
+                return (
+                  <div className="fixed inset-0 z-50 bg-[#1D1D1F]/50 backdrop-blur-xs flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-slate-200 overflow-hidden flex flex-col font-sans">
+                      <div className={`p-4 text-white flex justify-between items-center ${isPM ? 'bg-indigo-700' : d.status === 'Resolved' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+                        <div>
+                          <span className="text-[9px] uppercase font-mono bg-white/20 py-0.5 px-1.5 rounded font-black tracking-wider">
+                            {isPM ? '🔧 PM SCHEDULE TARGET' : '⚠️ EMERGENCY DOWN TIME'}
+                          </span>
+                          <h3 className="font-black text-sm mt-1">{isPM ? d.title : 'ใบรายงานสถานะเครื่องเสีย'}</h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCalendarEvent(null);
+                            setResolvingTicketId(null);
+                          }}
+                          className="bg-white/10 hover:bg-white/20 w-7 h-7 rounded-full flex items-center justify-center font-bold text-white text-xs cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="p-5 space-y-4 overflow-y-auto max-h-[450px]">
+                        {/* Machinery asset info */}
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs text-slate-800 space-y-1">
+                          <strong className="text-[9px] text-slate-400 uppercase tracking-widest block font-sans font-bold">เครื่องจักรที่ซ่อมบำรุง (Target Asset)</strong>
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="font-bold">{machine ? machine.name : d.machineId}</p>
+                              <p className="text-slate-500 text-[10px] font-mono">Code: {machine ? machine.code : 'N/A'}</p>
+                            </div>
+                            <span className="text-[9.5px] bg-white border font-bold text-slate-600 px-2 py-0.5 rounded">
+                              {machine ? machine.status : 'None'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {isPM ? (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <span className="text-slate-450 block font-bold text-[9px] uppercase">กำหนดเสร็จ:</span>
+                                <strong className="text-slate-700 font-mono">{d.dueBy}</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-450 block font-bold text-[9px] uppercase">สถานะปัจจุบัน:</span>
+                                <span className={`inline-block px-1.5 rounded text-[10px] font-black ${
+                                  d.status === 'Completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700'
+                                }`}>{d.status}</span>
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <span className="text-slate-450 block font-bold text-[9px] uppercase">รายการขั้นตอนการตรวจเช็ค (Standard Checklist)</span>
+                              <div className="bg-slate-100 p-3 rounded-lg space-y-1 text-xs text-slate-600 border border-slate-200">
+                                {d.checklist && d.checklist.map((c: string, idx: number) => (
+                                  <div key={idx} className="flex items-center gap-1.5">
+                                    <Check className="h-4.5 w-4.5 text-emerald-500" />
+                                    <span>{c}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {d.status === 'Completed' && (
+                              <div className="p-3 bg-emerald-50 border border-emerald-150 rounded-lg text-xs text-emerald-800">
+                                <strong>✓ ตรวจสอบผ่านสำเร็จเรียบร้อย</strong> โดย {d.completedBy || 'Marcus Vance'} เมื่อ {d.completedAt || d.dueBy}
+                              </div>
+                            )}
+
+                            {d.status !== 'Completed' && canPerformMaint && (
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await handleCompletePM(d.id);
+                                  setSelectedCalendarEvent(null);
+                                }}
+                                className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all select-none shadow-sm cursor-pointer"
+                              >
+                                ✓ ดำเนินการเสร็จสิ้นและบันทึกประวัติ (Update SQL)
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          // Repair tickets logic
+                          <div className="space-y-4 font-sans">
+                            <div className="space-y-1 text-xs">
+                              <span className="text-slate-450 block font-bold text-[9px] uppercase">อาการขัดข้อง/เหตุการณ์:</span>
+                              <p className="bg-rose-50/50 p-2.5 rounded-lg border border-red-50 text-red-850 font-bold tracking-tight">{d.description}</p>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                              <div>
+                                <span className="text-slate-450 block font-bold text-[9px] uppercase">วันที่เกิดการ Downtime:</span>
+                                <strong className="text-slate-700 font-mono">{d.createdAt}</strong>
+                              </div>
+                              <div>
+                                <span className="text-slate-450 block font-bold text-[9px] uppercase">ลำดับความสำคัญ:</span>
+                                <strong className="text-red-700 font-mono uppercase">{d.priority}</strong>
+                              </div>
+                            </div>
+
+                            {d.status === 'Resolved' ? (
+                              <div className="bg-emerald-50 border border-emerald-150 p-3 rounded-lg text-xs space-y-1.5 text-emerald-800">
+                                <p><strong>สาเหตุหลัก:</strong> {d.rootCause || 'N/A'}</p>
+                                <p><strong>มาตรการซ่อมแก้ไข:</strong> {d.correctiveAction || 'N/A'}</p>
+                              </div>
+                            ) : (
+                              canPerformMaint && (
+                                <div className="space-y-3 pt-3 border-t border-slate-200">
+                                  <div className="space-y-1 text-xs">
+                                    <label className="font-bold text-slate-700">ระบุสาเหตุแท้จริง (RCA)*</label>
+                                    <input
+                                      required
+                                      type="text"
+                                      value={resolveForm.rootCause}
+                                      onChange={(e) => setResolveForm({ ...resolveForm, rootCause: e.target.value })}
+                                      placeholder="เช่น น้ำยาหล่อลื่นหมด แกนหมุนละลายสะสมความร้อน"
+                                      className="w-full p-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-1 text-xs">
+                                    <label className="font-bold text-slate-700">มาตรการแก้ไขและทำความสะอาดระบบ*</label>
+                                    <input
+                                      required
+                                      type="text"
+                                      value={resolveForm.correctiveAction}
+                                      onChange={(e) => setResolveForm({ ...resolveForm, correctiveAction: e.target.value })}
+                                      placeholder="เช่น เปลี่ยนพัดลมเป่าคาร์ทริดจ์ ขัดแกนโรเตอร์ล้างสนิม"
+                                      className="w-full p-2 rounded-xl border border-slate-300 text-xs focus:ring-1 focus:ring-indigo-500 outline-none"
+                                    />
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      if (!resolveForm.rootCause || !resolveForm.correctiveAction) {
+                                        onNotify("กรุณากรอกข้อมูล RCA และมาตรการแก้ไขให้ครบถ้วน", "warning");
+                                        return;
+                                      }
+                                      
+                                      // Trigger resolution using pre-existing state variables and handler
+                                      setResolvingTicketId(d.id);
+                                      
+                                      // Emulate form event for handleResolveRepair
+                                      const mockEvent = {
+                                        preventDefault: () => {}
+                                      } as any;
+                                      
+                                      await handleResolveRepair(mockEvent);
+                                      setSelectedCalendarEvent(null);
+                                    }}
+                                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl shadow-md cursor-pointer transition-all active:scale-95"
+                                  >
+                                    ✓ บันทึกซ่อมเสร็จปิด Downtime (Write Supabase SQL)
+                                  </button>
+                                </div>
+                              )
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-slate-100 p-3 border-t border-slate-200 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCalendarEvent(null);
+                            setResolvingTicketId(null);
+                          }}
+                          className="px-3.5 py-1.5 bg-slate-400 hover:bg-slate-500 text-white font-bold text-xs rounded-lg transition-colors cursor-pointer"
+                        >
+                          ปิดด็อกเก็ต
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+          );
+        })()}
 
       </div>
 

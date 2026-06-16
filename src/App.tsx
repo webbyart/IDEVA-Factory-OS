@@ -30,6 +30,7 @@ import TraceabilityOS from './components/TraceabilityOS';
 import CRM_OS from './components/CRM_OS';
 import AdminOS from './components/AdminOS';
 import RegulatoryOS from './components/RegulatoryOS';
+import DatabaseSetupOS from './components/DatabaseSetupOS';
 
 // No mock data imports - purely connected to database state
 const INITIAL_DB_STATE = {
@@ -124,21 +125,13 @@ export default function App() {
   // Notification logs toast state
   const [toasts, setToasts] = useState<{ id: string, msg: string, type: 'info' | 'warning' | 'error' }[]>([]);
   
-  // AI Copilot state
-  const [copilotMessage, setCopilotMessage] = useState<string>('');
-  const [copilotHistory, setCopilotHistory] = useState<{ sender: 'user' | 'ai', msg: string }[]>([
-    { sender: 'ai', msg: "Greetings! I am the **IDEVA Factory OS Copilot**. I analyze real-time inventory balances, floor OEE scores, maintenance backlogs, and corporate ledger distributions. Ask me anything such as *'Give me an operational optimization blueprint'*." }
-  ]);
-  const [aiLoading, setAiLoading] = useState<boolean>(false);
+
 
   // Theme & Responsive Sidebar States for AdminLTE 3 / Bootstrap 5 Look
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('ideva_theme_mode') === 'dark';
   });
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() => {
-    // Open by default on screen size, but support toggle
-    return window.innerWidth >= 768;
-  });
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
   useEffect(() => {
     localStorage.setItem('ideva_theme_mode', isDarkMode ? 'dark' : 'light');
@@ -152,6 +145,20 @@ export default function App() {
     }
   }, [isDarkMode]);
 
+  const [activeDbConfig, setActiveDbConfig] = useState<any>({ type: 'xampp', host: 'localhost', port: '3306' });
+
+  const fetchDbConfig = async () => {
+    try {
+      const res = await fetch('/api/db/config');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.config) {
+          setActiveDbConfig(data.config);
+        }
+      }
+    } catch (err) {}
+  };
+
   useEffect(() => {
     fetchState();
   }, []);
@@ -164,6 +171,7 @@ export default function App() {
       }
       const data = await response.json();
       setDbState(data);
+      fetchDbConfig();
     } catch (e) {
       addToast("Failed to connect to live Supabase company database.", "error");
     } finally {
@@ -179,29 +187,7 @@ export default function App() {
     }, 5000);
   };
 
-  const handleSendCopilotMessage = async (e?: React.FormEvent, customPrompt?: string) => {
-    if (e) e.preventDefault();
-    const promptToSend = customPrompt || copilotMessage;
-    if (!promptToSend.trim()) return;
 
-    setCopilotHistory(prev => [...prev, { sender: 'user', msg: promptToSend }]);
-    setCopilotMessage('');
-    setAiLoading(true);
-
-    try {
-      const response = await fetch('/api/copilot', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: promptToSend })
-      });
-      const data = await response.json();
-      setCopilotHistory(prev => [...prev, { sender: 'ai', msg: data.response }]);
-    } catch {
-      setCopilotHistory(prev => [...prev, { sender: 'ai', msg: "Sorry, I had an issue connecting to the cognitive copilot. Check process logs." }]);
-    } finally {
-      setAiLoading(false);
-    }
-  };
 
   const handleGlobalExportExcel = () => {
     // Generates a mock download of the active tab state
@@ -288,7 +274,7 @@ export default function App() {
     { id: 'quality_and_traceability', label: '6. ตรวจแล็บคุณภาพและสืบกลับ (QA/QC)', icon: ShieldCheck, category: 'QUALITY & SAFETY' },
     { id: 'maintenance_and_compliance', label: '7. ตารางซ่อมบำรุงและ SOP อ.ย. (PM & Regulation)', icon: Wrench, category: 'REPAIR & COMPLIANCE' },
     { id: 'system_and_reports', label: '8. รายงานสรุปและสิทธิ์ผู้ใช้งาน (Admin & Reports)', icon: Settings, category: 'ANALYTICS & SYSTEMS' },
-    { id: 'copilot', label: '9. สมองกลร่วมงานสนันสนุน (AI Copilot)', icon: BrainCircuit, category: 'ANALYTICS & SYSTEMS' }
+    { id: 'database_setup', label: '9. ตั้งค่า ฐานข้อมูล (Database Engine)', icon: Database, category: 'ANALYTICS & SYSTEMS' }
   ];
 
   // Filtering sidebar menu
@@ -393,23 +379,23 @@ export default function App() {
         </nav>
 
         {/* Sidebar Footer User Role and Sync */}
-        <div className={`p-4 border-t text-[10.5px] text-slate-400 space-y-1.5 ${
-          isDarkMode ? 'border-[#242936] bg-[#0c0d15]' : 'border-slate-750 bg-[#23272b]'
-        }`}>
-          <div className="flex justify-between items-center font-semibold">
-            <span>ฐานข้อมูล MySQL: 127.0.0.1</span>
-            <button 
-              type="button" 
-              onClick={() => {
-                fetchState();
-                addToast("เสร็จสิ้นการรีเฟรชฐานข้อมูล MySQL แบบ Real-time", "info");
-              }} 
-              className="text-[#FF9500] font-bold hover:underline py-0.5 px-2 bg-slate-900 rounded-md shadow-xs active:scale-95 transition-all text-[9.5px]"
-            >
-              ดึงข้อมูลใหม่
-            </button>
+        <div 
+          onClick={() => setActiveTab('database_setup')}
+          className={`p-4 border-t text-[10.5px] text-slate-400 space-y-1.5 cursor-pointer hover:bg-slate-850/40 transition-all ${
+            isDarkMode ? 'border-[#242936] bg-[#0c0d15]' : 'border-slate-750 bg-[#23272b]'
+          }`}
+          title="คลิกเพื่อตั้งค่าเครื่องยนต์ฐานข้อมูล"
+        >
+          <div className="flex justify-between items-center font-semibold text-white">
+            <span className="flex items-center gap-1.5 text-xs">
+              <Database className="h-3.5 w-3.5 text-indigo-400" />
+              <span>ไดรเวอร์: {activeDbConfig.type?.toUpperCase()}</span>
+            </span>
+            <span className="text-emerald-400 font-extrabold text-[9px] uppercase font-mono animate-pulse">● Active</span>
           </div>
-          <p className="text-[10px] text-slate-500 font-mono">XAMPP Configured • Port 3306</p>
+          <p className="text-[10px] text-slate-400 font-mono truncate">
+            {activeDbConfig.type === 'supabase' ? 'Supabase cloud cloud tables' : `${activeDbConfig.host || '127.0.0.1'} • Port ${activeDbConfig.port || ''}`}
+          </p>
         </div>
       </aside>
 
@@ -707,22 +693,7 @@ export default function App() {
 
               </div>
 
-              <div className="bg-[#1C1C1E] p-6 rounded-2xl text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="space-y-2">
-                  <span className="bg-blue-600 font-mono text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">AI Operations Suggestion</span>
-                  <h4 className="font-bold text-white text-[15px]">ข้อแนะนำสมองกลจากบอทร่วมงานไอดีวา (IDEVA Copilot Tips)</h4>
-                  <p className="text-[#86868B] text-xs max-w-xl">
-                    สต็อก Niacinamide อยู่ในขั้นวิกฤต (25 kg) แต่มีคิวรอความรับเข้า GRN005 ในดักตรวจ COA. กรุณาเร่งเจ้าหน้าที่ฝ่ายตรวจสอบ QC ปล่อยปล่อยสิทธิ์ผ่านแล็บโดยด่วนเพื่อให้ไลน์ Mixer RX-3F ทำงานตู้ได้เต็มประสิทธิภาพ OEE
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('copilot')}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition"
-                >
-                  สอบถามสมองอัจฉริยะ 🧠
-                </button>
-              </div>
+
 
             </div>
           )}
@@ -1120,89 +1091,11 @@ export default function App() {
             </div>
           )}
 
-          {/* AI Copilot Tab */}
-          {activeTab === 'copilot' && (
-            <div className="bg-white p-6 rounded-3xl border border-[#E5E5EA] shadow-sm max-w-4xl mx-auto space-y-6 animate-fade-in" id="ai-intelligence-panel">
-              <div className="flex items-center gap-3 border-b border-[#E5E5EA] pb-4">
-                <span className="p-3 bg-neutral-100 border border-[#E5E5EA] rounded-xl text-[#1D1D1F]"><BrainCircuit className="h-6 w-6" /></span>
-                <div>
-                  <h3 className="font-semibold text-[#1D1D1F] text-lg">สมองกลสนับสนุนไลน์ผลิต (Factory OS Copilot)</h3>
-                  <p className="text-[#86868B] text-xs">วิเคราะห์แผน OEE, ทะเบียนวัตถุดิบขาดแคลน และจัดงบลงทุนเชิงประหยัดด้วยปัญญาประดิษฐ์สถิติขั้นสูง</p>
-                </div>
-              </div>
 
-              <div className="h-[430px] border border-[#E5E5EA] bg-[#F5F5F7]/40 rounded-2xl p-5 overflow-y-auto space-y-4">
-                {copilotHistory.map((h, idx) => (
-                  <div key={idx} className={`flex ${h.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div 
-                      className={`p-4 rounded-2xl max-w-2xl text-xs shadow-xs leading-relaxed ${
-                        h.sender === 'user' 
-                          ? 'bg-[#0071E3] text-white rounded-br-none' 
-                          : 'bg-white border border-[#E5E5EA] text-[#1D1D1F] rounded-bl-none'
-                      }`}
-                    >
-                      <div className="flex font-bold uppercase tracking-wider text-[9px] mb-1.5 opacity-80">
-                        {h.sender === 'user' ? 'Operator' : 'AI Engineer Core'}
-                      </div>
-                      
-                      <div className="space-y-1.5 font-sans">
-                        {h.msg.split('\n').map((line, i) => (
-                          <p key={i}>{line}</p>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))}
 
-                {aiLoading && (
-                  <div className="flex justify-start">
-                    <div className="bg-white border border-[#E5E5EA] p-4 rounded-xl flex items-center gap-3">
-                      <RefreshCw className="h-4 w-4 text-[#0071E3] animate-spin" />
-                      <span className="text-xs text-[#86868B]">กำลังประมวลความเร็วสูงด้วยโครงข่ายข้อมูล Gemini Neural...</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-[10px] text-[#86868B] font-bold uppercase tracking-wider">ตัวอย่างหัวข้อมอบหมายด่วน</p>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={(e) => handleSendCopilotMessage(e, "Audit current OEE bottlenecks across live chemical mixers")}
-                    className="px-3.5 py-2 border border-[#E5E5EA] hover:border-[#D1D1D6] bg-white text-[#1D1D1F] text-xs rounded-xl font-medium transition-colors"
-                  >
-                    🚀 ตรวจคอขวด OEE Mixers
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleSendCopilotMessage(e, "Check inventory stock level warnings and list pending PR orders")}
-                    className="px-3.5 py-2 border border-[#E5E5EA] hover:border-[#D1D1D6] bg-white text-[#1D1D1F] text-xs rounded-xl font-medium transition-colors"
-                  >
-                    📦 วิเคราะห์วัตถุดิบสำรอง
-                  </button>
-                </div>
-              </div>
-
-              <form onSubmit={(e) => handleSendCopilotMessage(e)} className="flex gap-2">
-                <input
-                  type="text"
-                  className="w-full text-xs rounded-xl border border-[#E5E5EA] bg-[#F5F5F7] p-3.5 focus:bg-white focus:ring-2 focus:ring-[#0071E3]/25 focus:border-[#0071E3] outline-none text-[#1D1D1F] font-sans"
-                  placeholder="Ask anything (เช่น 'วิเคราะห์แผนการซ่อมเครื่องจักร Mixer-MX10 เชิงรุก')"
-                  value={copilotMessage}
-                  onChange={(e) => setCopilotMessage(e.target.value)}
-                  disabled={aiLoading}
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={aiLoading}
-                  className="px-6 py-3.5 bg-[#1D1D1F] hover:bg-neutral-800 text-white font-bold text-xs rounded-xl transition-all h-full"
-                >
-                  ส่งข้อมูล
-                </button>
-              </form>
-            </div>
+          {/* Database Setup Workstation Tab */}
+          {activeTab === 'database_setup' && (
+            <DatabaseSetupOS onNotify={addToast} onRefreshState={fetchState} />
           )}
 
         </section>
