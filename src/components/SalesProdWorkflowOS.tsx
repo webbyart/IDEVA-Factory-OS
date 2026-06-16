@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   FileSpreadsheet, Folder, FolderOpen, Plus, Search, Printer, ArrowRight, Check, CheckCircle2, 
   AlertCircle, TrendingUp, Beaker, Layers, Package, Upload, ClipboardCheck, 
   RefreshCw, FileText, ExternalLink, Database, Cpu, HelpCircle, FileCheck2, Trash2
 } from 'lucide-react';
+import GoogleSheetDataGrid, { ColumnConfig } from './GoogleSheetDataGrid';
 
 interface SalesProdWorkflowProps {
   dbState: any;
@@ -147,6 +148,28 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
     '[01:15:30] Webhook successfully verified standard COA storage format matching AppSheet structures.'
   ]);
 
+  // Data Grid Configurations for Sales Order spreadsheet
+  const gridColumns = useMemo<ColumnConfig[]>(() => [
+    { key: 'jobCode', label: 'รหัสงาน', type: 'text', readOnly: true },
+    { key: 'customerName', label: 'ลูกค้า', type: 'text', readOnly: true },
+    { key: 'productName', label: 'สินค้า', type: 'text', readOnly: true },
+    { key: 'quantityRequested', label: 'จำนวนสั่งผลิต (Pcs)', type: 'number' },
+    { key: 'status', label: 'สถานะ', type: 'select', options: ['Pending Planning', 'Released to Production', 'Active', 'Completed', 'Deficient Raw Materials'] },
+    { key: 'createdAt', label: 'วันที่เจรจาจ๊อบ', type: 'date', readOnly: true }
+  ], []);
+
+  const formattedJobs = useMemo(() => {
+    return (dbState.salesJobs || []).map((j: any) => {
+      const cust = dbState.customers?.find((c: any) => c.id === j.customerId);
+      const prod = dbState.products?.find((p: any) => p.id === j.productId);
+      return {
+        ...j,
+        customerName: cust ? `${cust.name} (${cust.code})` : `ทั่วไป (${j.customerCode || ''})`,
+        productName: prod ? prod.name : 'SKU น้ำหอมบ่มกลั่น'
+      };
+    });
+  }, [dbState.salesJobs, dbState.customers, dbState.products]);
+
   // FIFO Calculation helper for selected Job
   const currentJob = dbState.salesJobs?.find((j: any) => j.id === selectedJobId) || dbState.salesJobs?.[0];
   const currentProduct = dbState.products?.find((p: any) => p.id === currentJob?.productId);
@@ -272,6 +295,39 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
       }
     } catch {
       onNotify('เซิร์ฟเวอร์ขัดข้อง ไม่สามารถสร้างใบรับงานได้', 'error');
+    }
+  };
+
+  // Handle inline updates on job rows via the GoogleSheetDataGrid
+  const handleUpdateJob = async (jobId: string, updatedFields: any) => {
+    const targetJob = dbState.salesJobs?.find((j: any) => j.id === jobId);
+    if (!targetJob) return;
+
+    // Merge modifications and enforce type casting
+    const mergedJob = { ...targetJob, ...updatedFields };
+    if (updatedFields.quantityRequested !== undefined) {
+      mergedJob.quantityRequested = Number(updatedFields.quantityRequested);
+    }
+
+    try {
+      const response = await fetch('/api/generic/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          table: 'salesJobs',
+          id: jobId,
+          item: mergedJob
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        onNotify(`[SUCCESS] บันทึกการแก้ไขแบบ Inline เรียบร้อย!`, 'info');
+        onRefresh();
+      } else {
+        onNotify(`ไม่สามารถบันทึกข้อมูลย้อนหลังได้`, 'error');
+      }
+    } catch {
+      onNotify(`การสื่อสารกับเซิร์ฟเวอร์กลางล้มเหลว`, 'error');
     }
   };
 
@@ -834,47 +890,36 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
             {/* Live Sales Jobs Track and Drive Simulation folders */}
             <div className="lg:col-span-2 space-y-6">
               
-              {/* Sales Jobs Master List */}
-              <div className="bg-white p-5 rounded-2xl border border-[#E5E5EA] shadow-sm space-y-4">
-                <h3 className="font-bold text-sm text-[#1D1D1F] flex items-center gap-1.5">
-                  <Layers className="h-4.5 w-4.5 text-[#0071E3]" /> ทะเบียนตั๋วสั่งรับงานฝ่ายขาย (Sales Orders)
-                </h3>
+              {/* Sales Jobs Master List - Google Sheet Data Grid Integration */}
+              <div className="space-y-4 rounded-3xl overflow-hidden shadow-sm border border-slate-200">
+                <GoogleSheetDataGrid 
+                  title="ตารางสารบันทะเบียนรับงานและสัญญา (Sales Jobs Master Sheet)"
+                  columns={gridColumns}
+                  data={formattedJobs}
+                  onUpdateRow={handleUpdateJob}
+                />
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-                  {(dbState.salesJobs || []).map((j: any) => {
-                    const cust = dbState.customers?.find((c: any) => c.id === j.customerId);
-                    const prod = dbState.products?.find((p: any) => p.id === j.productId);
-                    const isSelected = selectedJobId === j.id;
-
-                    return (
-                      <div 
-                        key={j.id}
-                        onClick={() => setSelectedJobId(j.id)}
-                        className={`p-4 rounded-2xl border text-xs cursor-pointer transition-all flex flex-col justify-between ${isSelected ? 'bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-[1.01]' : 'bg-neutral-50 border-[#E5E5EA] hover:bg-[#F2F2F7] text-slate-700'}`}
-                      >
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-[10px] font-semibold">
-                            <span className={`px-2 py-0.5 rounded font-mono font-bold ${isSelected ? 'bg-[#0071E3] text-white' : 'bg-slate-200 text-slate-800'}`}>
-                              JOB CODE: {j.jobCode}
-                            </span>
-                            <span className={isSelected ? 'text-slate-300' : 'text-slate-500'}>{j.createdAt}</span>
-                          </div>
-
-                          <h4 className="font-bold text-sm line-clamp-1">{prod?.name || 'SKU ผลน้ำหอม'}</h4>
-                          <p className={`text-[11px] ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
-                            ลูกค้า: <strong>{cust?.name || 'ลูกค้าห้างทั่วไป'} ({j.customerCode})</strong>
-                          </p>
-
-                          <div className="flex justify-between items-center pt-2">
-                            <span>ความจุสั่งผลิต: <strong>{j.quantityRequested?.toLocaleString()} SKU</strong></span>
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${j.status === 'Pending Planning' ? 'bg-amber-100 text-amber-800' : 'bg-green-100 text-green-800'}`}>
-                              {j.status}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-wrap justify-between items-center gap-3 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="p-1 px-2 pb-0.5 bg-indigo-600 text-white font-bold rounded font-mono text-[10px]">SELECTED TICKET</span>
+                    <p className="font-extrabold text-slate-700">
+                      โฟลเดอร์สัญญา & ใบ COA คลาวด์เป้าหมาย:
+                    </p>
+                  </div>
+                  <select
+                    value={selectedJobId}
+                    onChange={(e) => setSelectedJobId(e.target.value)}
+                    className="p-2.5 px-4 border border-slate-300 rounded-xl bg-white font-mono font-black text-[#0B3C5D] opacity-90 transition-all select-none cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    {(dbState.salesJobs || []).map((j: any) => {
+                      const prodName = dbState.products?.find((p: any) => p.id === j.productId)?.name || 'SKU';
+                      return (
+                        <option key={j.id} value={j.id} className="font-mono font-bold text-slate-900">
+                          {j.jobCode} — {prodName.slice(0, 30)}...
+                        </option>
+                      );
+                    })}
+                  </select>
                 </div>
               </div>
 
@@ -1729,20 +1774,20 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
                 </div>
 
                 {/* GRIDPHP-STYLE DATA ROWS */}
-                <div className="border border-[#E5E5EA] rounded-2xl overflow-hidden overflow-x-auto text-xs">
+                <div className="border border-[#E5E5EA] rounded-2xl overflow-hidden overflow-x-auto text-[13px]">
                   <table className="w-full border-collapse">
                     <thead>
-                      <tr className="bg-[#F5F5F7] border-b border-[#E5E5EA] text-[#86868B] font-bold text-left uppercase text-[10px] tracking-wider select-none h-11">
-                        <th className="p-3">รหัสสาร (Code)</th>
-                        <th className="p-3">ชื่อรายการพัสดุเคมีภัณฑ์</th>
-                        <th className="p-3">ประเภทหลัก</th>
-                        <th className="p-3 text-right">จำนวนสต็อกคงเหลือ</th>
-                        <th className="p-3 text-right">จุดปลอดภัยต่ำสุด (Min)</th>
-                        <th className="p-3 text-center">สถานะสต็อก</th>
-                        <th className="p-3 text-center">การจัดจัดการจัดซื้อ</th>
+                      <tr className="bg-[#0B3C5D] border-b border-indigo-950 text-white font-extrabold text-left uppercase tracking-wider select-none h-12 sticky top-0 z-10">
+                        <th className="p-3.5 text-white">รหัสสาร (Code)</th>
+                        <th className="p-3.5 text-white">ชื่อรายการพัสดุเคมีภัณฑ์</th>
+                        <th className="p-3.5 text-white">ประเภทหลัก</th>
+                        <th className="p-3.5 text-right text-white">จำนวนสต็อกคงเหลือ</th>
+                        <th className="p-3.5 text-right text-white">จุดปลอดภัยต่ำสุด (Min)</th>
+                        <th className="p-3.5 text-center text-white">สถานะสต็อก</th>
+                        <th className="p-3.5 text-center text-white">การจัดการจัดซื้อ</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[#E5E5EA]">
+                    <tbody className="divide-y divide-slate-100">
                       {(dbState.materials || [])
                         .filter((m: any) => {
                           const s = materialSearch.toLowerCase().trim();
@@ -1760,53 +1805,54 @@ export default function SalesProdWorkflowOS({ dbState, onRefresh, onNotify, user
                           }
                         })
                         .slice((materialPage - 1) * 8, materialPage * 8)
-                        .map((material: any) => {
+                        .map((material: any, idx: number) => {
                           const isShort = material.stockLevel < material.minStock;
                           const isEditing = editingMaterialId === material.id;
+                          const isEven = idx % 2 === 1;
                           
                           return (
-                            <tr key={material.id} className="hover:bg-neutral-50/50 transition-colors h-14">
-                              <td className="p-3 font-mono font-bold text-slate-800">{material.code}</td>
-                              <td className="p-3 font-semibold text-slate-900">{material.name}</td>
+                            <tr key={material.id} className={`${isEven ? 'bg-[#F8FBFF]' : 'bg-white'} hover:bg-[#EAF3FF] transition-colors h-14`}>
+                              <td className="p-3 font-mono font-bold text-slate-900">{material.code}</td>
+                              <td className="p-3 font-bold text-slate-950">{material.name}</td>
                               <td className="p-3">
-                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${material.category === 'Raw Material' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-blue-50 text-blue-800 border border-blue-200'}`}>
+                                <span className={`px-2.5 py-1 rounded text-[11px] font-black ${material.category === 'Raw Material' ? 'bg-emerald-100 text-emerald-950 border border-emerald-350' : 'bg-sky-100 text-sky-950 border border-sky-300'}`}>
                                   {material.category === 'Raw Material' ? 'สารสกัดเคมี' : 'บรรจุภัณฑ์/กล่อง'}
                                 </span>
                               </td>
-                              <td className="p-3 text-right font-mono font-bold">
+                              <td className="p-3 text-right font-mono font-bold text-slate-950">
                                 {isEditing ? (
                                   <div className="flex justify-end gap-1 items-center">
                                     <input 
                                       type="number"
-                                      className="w-16 p-1 border rounded bg-white text-center"
+                                      className="w-16 p-1 border rounded bg-white text-center font-bold text-slate-900 shadow-xs"
                                       value={editingMaterialStock}
                                       onChange={(e)=>setEditingMaterialStock(Number(e.target.value))}
                                     />
                                     <button 
                                       onClick={() => handleQuickUpdateStock(material.id, editingMaterialStock)}
-                                      className="p-1 bg-emerald-600 text-white rounded hover:bg-emerald-700"
+                                      className="p-1 px-2.5 bg-emerald-600 text-white rounded hover:bg-emerald-700 font-bold"
                                     >
                                       ✓
                                     </button>
                                   </div>
                                 ) : (
-                                  <div className="group cursor-pointer hover:text-[#0071E3] flex justify-end items-center gap-1.5" onClick={()=>{setEditingMaterialId(material.id); setEditingMaterialStock(material.stockLevel);}}>
-                                    <span className="underline decoration-dotted">{material.stockLevel?.toLocaleString()} {material.unit}</span>
-                                    <span className="text-[9px] text-[#86868B] group-hover:block hidden">แก้ไข</span>
+                                  <div className="group cursor-pointer text-indigo-750 hover:text-indigo-900 hover:scale-[1.02] flex justify-end items-center gap-1.5 font-black transition-all" onClick={()=>{setEditingMaterialId(material.id); setEditingMaterialStock(material.stockLevel);}}>
+                                    <span className="underline decoration-indigo-600/50 decoration-2">{material.stockLevel?.toLocaleString()} {material.unit}</span>
+                                    <span className="text-[10px] text-indigo-650 bg-indigo-50 px-1 py-0.5 rounded-sm font-bold group-hover:block hidden">แก้ไข</span>
                                   </div>
                                 )}
                               </td>
-                              <td className="p-3 text-right font-mono font-semibold text-[#86868B]">
+                              <td className="p-3 text-right font-mono font-bold text-slate-800">
                                 {material.minStock?.toLocaleString()} {material.unit}
                               </td>
                               <td className="p-3 text-center">
                                 {isShort ? (
-                                  <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-200 text-[10px] animate-pulse">
-                                    <AlertCircle className="h-3 w-3" /> ต่ำกว่าจุดปลอดภัย
+                                  <span className="inline-flex items-center gap-1.5 bg-rose-100 text-rose-950 font-black px-2.5 py-1 rounded-full border border-rose-350 text-[11px] animate-pulse">
+                                    <AlertCircle className="h-3.5 w-3.5 text-rose-600" /> ต่ำกว่าจุดปลอดภัย
                                   </span>
                                 ) : (
-                                  <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200 text-[10px]">
-                                    <Check className="h-3 w-3" /> ปกติ (Safe)
+                                  <span className="inline-flex items-center gap-1.5 bg-emerald-100 text-emerald-950 font-black px-2.5 py-1 rounded-full border border-emerald-350 text-[11px]">
+                                    <Check className="h-3.5 w-3.5 text-emerald-650" /> ปกติ (Safe)
                                   </span>
                                 )}
                               </td>

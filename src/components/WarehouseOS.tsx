@@ -56,6 +56,17 @@ export default function WarehouseOS({ dbState, onRefresh, onNotify, userRole }: 
     return matchesSearch && matchesLoc;
   });
 
+  const sortedLots = React.useMemo(() => {
+    const list = [...filterLots];
+    if (methodFilter === 'FIFO') {
+      return list.sort((a, b) => new Date(a.receiveDate).getTime() - new Date(b.receiveDate).getTime());
+    }
+    if (methodFilter === 'FEFO') {
+      return list.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+    }
+    return list;
+  }, [filterLots, methodFilter]);
+
   const handleRunFEFOAllocation = (materialCode: string) => {
     // FEFO: First Expired First Out
     const matchingLots = inventoryLots.filter(l => l.code === materialCode);
@@ -217,26 +228,31 @@ export default function WarehouseOS({ dbState, onRefresh, onNotify, userRole }: 
           <span className="inline-flex items-center gap-1.5 bg-indigo-500/20 text-indigo-300 font-semibold px-2.5 py-1 text-[9px] rounded-full uppercase tracking-wider font-mono">
             FEFO Lot Selector Engine (First Expired First Out)
           </span>
-          <h4 className="font-bold text-lg text-white">เครื่องคำนวนสิทธิ์สลัดคิวเบิกจ่าย FEFO</h4>
+          <h4 className="font-bold text-lg text-white">เครื่องคำนวณคัดแยกสิทธิ์เบิกจ่ายตามเกณฑ์วันหมดอายุ (FEFO)</h4>
           <p className="text-slate-400 text-xs max-w-xl">
-            สแกนหรือเลือกรหัสเคมีภัณฑ์เพื่อคำนวนล็อตจัดเก็บที่ใกล้สิ้นอายุ (EXP) ดึงขึ้นจ่ายระบบก่อนเป็นอันดับแรก แทนเพื่อรักษาความเสถียรวัตถุดิบและมาตรฐาน ISO 22716
+            ระบุและคัดกรองวัตถุดิบเคมีเพื่อประเมินลำดับล็อตที่จะหมดอายุก่อน (First Expired First Out) ช่วยป้องกันปัญหาสารเคมีเสื่อมสภาพคาโครงสร้างโซนจัดเก็บ
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => handleRunFEFOAllocation('RAW-NIA-01')}
-            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl"
+        <div>
+          <select
+            className="w-full bg-slate-800 border border-slate-700 text-white font-black p-2.5 rounded-xl outline-none text-xs cursor-pointer"
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) {
+                handleRunFEFOAllocation(e.target.value);
+              }
+            }}
           >
-            วิเคราะห์ FEFO: Niacinamide
-          </button>
-          <button
-            type="button"
-            onClick={() => handleRunFEFOAllocation('RAW-GLY-01')}
-            className="px-4 py-2 bg-[#FF9500] hover:bg-[#e08400] text-slate-950 font-bold text-xs rounded-xl"
-          >
-            วิเคราะห์ FEFO: Glycerin
-          </button>
+            <option value="" disabled>-- เลือกวัตถุดิบเพื่อสุ่มประเมิน FEFO --</option>
+            {Array.from(new Set(inventoryLots.map(l => JSON.stringify({code: l.code, name: l.materialName})))).map(str => {
+              const item = JSON.parse(str as string) as { code: string; name: string };
+              return (
+                <option key={item.code} value={item.code} className="text-slate-900 bg-white font-bold">
+                  {item.name} ({item.code})
+                </option>
+              );
+            })}
+          </select>
         </div>
       </div>
 
@@ -248,7 +264,7 @@ export default function WarehouseOS({ dbState, onRefresh, onNotify, userRole }: 
               <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
               ลำดับการเบิกจ่ายตาม FEFO สำหรับ: {fefoCheckResult.name} ({fefoCheckResult.materialId})
             </span>
-            <button type="button" onClick={() => setFefoCheckResult(null)} className="text-indigo-600 font-bold">ปิดหน้าต่าง [X]</button>
+            <button type="button" onClick={() => setFefoCheckResult(null)} className="text-indigo-600 font-bold hover:underline">ปิดหน้าต่าง [X]</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             {fefoCheckResult.suggestedLots.map((lot, idx) => (
@@ -256,22 +272,22 @@ export default function WarehouseOS({ dbState, onRefresh, onNotify, userRole }: 
                 key={lot.id} 
                 className={`p-3 rounded-lg border flex flex-col justify-between ${
                   idx === 0 
-                    ? 'bg-amber-100 border-amber-300 text-amber-900 ring-2 ring-amber-400' 
+                    ? 'bg-amber-100 border-amber-300 text-amber-900 ring-2 ring-amber-400 font-bold' 
                     : 'bg-white border-indigo-100 text-indigo-950'
                 }`}
               >
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <span className="font-mono text-[10px] uppercase font-bold text-slate-500">คิวสิทธิ์ลำดับ {idx + 1}</span>
+                    <span className="font-mono text-[10px] uppercase font-bold text-slate-500 font-mono">คิวสิทธิ์ลำดับ {idx + 1}</span>
                     {idx === 0 && <span className="bg-red-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold uppercase tracking-wider animate-pulse">จ่ายด่วนหลัก</span>}
                   </div>
-                  <p className="font-bold text-xs">Lot No: {lot.lotNo}</p>
-                  <p className="font-mono text-[10px] text-slate-500">Location: Bin {lot.location}</p>
+                  <p className="font-bold text-xs text-slate-900">Lot No: {lot.lotNo}</p>
+                  <p className="font-mono text-[10px] text-slate-600 font-medium">Location: Bin {lot.location}</p>
                 </div>
-                <div className="mt-2 pt-2 border-t border-slate-200/50 space-y-1 text-[10px]">
-                  <p>วันหมดอายุ (EXP): <strong className="text-red-600">{lot.expiryDate}</strong></p>
+                <div className="mt-2 pt-2 border-t border-slate-200/50 space-y-1 text-[10px] text-slate-700">
+                  <p>วันหมดอายุ (EXP): <strong className="text-red-650 font-black">{lot.expiryDate}</strong></p>
                   <p>วันรับเข้าคลัง: {lot.receiveDate}</p>
-                  <p>ยอดปัจจุบัน: <strong>{lot.stockLevel} {lot.unit}</strong></p>
+                  <p>ยอดปัจจุบัน: <strong className="text-slate-900">{lot.stockLevel} {lot.unit}</strong></p>
                 </div>
               </div>
             ))}
@@ -280,123 +296,109 @@ export default function WarehouseOS({ dbState, onRefresh, onNotify, userRole }: 
       )}
 
       {/* Main DataTable list */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-xs space-y-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-250 shadow-sm space-y-4">
         
         {/* Toolbar Header of Table */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-100 pb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-150 pb-4">
           <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-indigo-600" />
+            <Package className="h-5 w-5 text-indigo-600 animate-pulse" />
             <div>
               <h3 className="font-bold text-sm text-slate-900">ตารางรายงานคงคลังแบบคุมระบุล็อค (Location & Expiry WMS DataTables)</h3>
-              <p className="text-[11px] text-slate-400">ควบคุมตำแหน่งทางกายภาพชั้นวารสาร บันทึกรับเข้าเคมี ติ๊กอนุมัติจ่ายหรืออัดลบสต็อกที่คลาดเคลื่อน</p>
+              <p className="text-[11px] text-slate-600 font-semibold">ควบคุมตำแหน่งทางกายภาพชั้นสาร บันทึกรับเข้าเคมี และควบคุมล็อต FIFO/FEFO เพื่อความเสถียรวัตถุดิบสูงสุด</p>
             </div>
           </div>
-
-          {/* Action buttons list */}
-          <div className="flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              onClick={exportExcel}
-              className="p-1 px-3 bg-green-600 text-white text-[11px] font-bold rounded-lg hover:bg-green-700 flex items-center gap-1 transition-all"
-            >
-              <FileSpreadsheet className="h-3.5 w-3.5" /> Export Excel
-            </button>
-            <button
-              type="button"
-              onClick={printSheet}
-              className="p-1 px-3 bg-[#0071E3] text-white text-[11px] font-bold rounded-lg hover:bg-[#147ce5] flex items-center gap-1 transition-all"
-            >
-              <Printer className="h-3.5 w-3.5" /> Print Sheet
-            </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="ค้นหาชื่อสาร/ล็อต..."
+                className="pl-3 pr-3 py-1.5 border border-slate-300 rounded-lg text-xs w-full sm:w-44 outline-none focus:border-indigo-500 font-bold bg-white text-slate-900 opacity-100"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <div>
+              <select
+                className="w-full bg-white border border-slate-300 p-1.5 rounded-lg outline-none text-xs text-slate-900 font-bold"
+                value={locationFilter}
+                onChange={(e) => setLocationFilter(e.target.value)}
+              >
+                <option value="All">ทุกโซนรับคลัง (All Zones)</option>
+                <option value="A">คลังเคมีสระคู A (Zone A)</option>
+                <option value="B">คลังสารสกัด B (Zone B)</option>
+                <option value="C">คลังวัสดุกล่องบรรจุ C (Zone C)</option>
+              </select>
+            </div>
+            <div>
+              <select
+                className="w-full bg-white border border-slate-300 p-1.5 rounded-lg outline-none text-xs text-slate-900 font-bold"
+                value={methodFilter}
+                onChange={(e) => setMethodFilter(e.target.value as any)}
+              >
+                <option value="All">การเรียงลำดับคลังทั้งหมด</option>
+                <option value="FIFO">สิทธิ์เข้าก่อนออกก่อน (FIFO)</option>
+                <option value="FEFO">หมดอายุก่อนออกก่อน (FEFO)</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Global search and column-level filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="ค้นหาวัตถุดิบ / ล็อตบรรจุ..."
-              className="w-full bg-slate-50 border border-slate-200 p-2 pl-8 rounded-lg outline-none text-xs focus:bg-white focus:ring-1 focus:ring-indigo-500 text-slate-800"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-          </div>
-
-          <div>
-            <select
-              className="w-full bg-slate-50 border border-slate-200 p-2 rounded-lg outline-none text-xs text-slate-600"
-              value={locationFilter}
-              onChange={(e) => setLocationFilter(e.target.value)}
-            >
-              <option value="All">ทุกโซนรับคลัง (All Zones)</option>
-              <option value="A">คลังเคมีสระคู A (Zone A)</option>
-              <option value="B">คลังสารสกัดชีวภาพ B (Zone B)</option>
-              <option value="C">คลังวัสดุขวดแก้วกล่องบรรจุ C (Zone C)</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-semibold bg-slate-50 border border-slate-200 p-1 px-2 rounded-lg">
-            <span>เกณฑ์การเบิกสลัดใบ:</span>
-            <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-bold">FEFO (First Expired First Out)</span>
-            <span className="text-slate-400">คัดเลือกตาม GMP แน่นหนา</span>
-          </div>
-        </div>
-
-        {/* Data Table */}
-        <div className="overflow-x-auto border border-slate-100 rounded-lg">
+        {/* Responsive Table Wrapper */}
+        <div className="overflow-x-auto border border-slate-200 rounded-xl shadow-xs">
           <table className="w-full text-left text-xs border-collapse font-sans">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
-                <th className="p-3 w-12 text-center">#</th>
-                <th className="p-3">รหัสวัตถุดิบ</th>
-                <th className="p-3 min-w-[180px]">ชื่อกลุ่มอุปกรณ์หรือเคมีสกัด</th>
-                <th className="p-3">รหัสล็อต (Lot No.)</th>
-                <th className="p-3">ตำแหน่งเก็บ (Bin)</th>
-                <th className="p-3">วันรับเข้า (Receive)</th>
-                <th className="p-3">วันหมดอายุ (EXP)</th>
-                <th className="p-3 text-right">ยอดคงคลั่ง</th>
-                <th className="p-3 text-center">หน่วยนับ</th>
-                <th className="p-3 text-center">สถานะแล็บ</th>
-                <th className="p-3 text-center w-32">คำสั่งชดเชย</th>
+              <tr className="bg-[#0f172a] text-white font-black h-11 border-b border-indigo-950 select-none text-[11px]">
+                <th className="p-3 text-center w-12 text-slate-200">#</th>
+                <th className="p-3 text-slate-200">รหัสวัตถุดิบ</th>
+                <th className="p-3 text-slate-200">ชื่อวัตถุดิบเคมี</th>
+                <th className="p-3 text-slate-200">รหัสล็อต (Lot No.)</th>
+                <th className="p-3 text-slate-200">ตำแหน่งเก็บ (Bin)</th>
+                <th className="p-3 text-slate-200">วันรับเข้า (Receive)</th>
+                <th className="p-3 text-slate-200">วันหมดอายุ (EXP)</th>
+                <th className="p-3 text-right text-slate-200 font-mono">ยอดคงคลัง</th>
+                <th className="p-3 text-center text-slate-200">หน่วยนับ</th>
+                <th className="p-3 text-center text-slate-200">สถานะแล็บ</th>
+                <th className="p-3 text-center w-32 text-slate-200">คำสั่ง</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-              {filterLots.length === 0 ? (
+            <tbody className="divide-y divide-slate-200 text-slate-900 font-bold">
+              {sortedLots.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="p-8 text-center text-slate-400 font-semibold">ไม่พบข้อมูลตรงกับตัวกรองสต็อกค้นหา</td>
+                  <td colSpan={11} className="p-8 text-center text-slate-500 font-black">ไม่พบข้อมูลตรงกับตัวกรองสต็อกค้นหา</td>
                 </tr>
               ) : (
-                filterLots.map((lot, idx) => {
+                sortedLots.map((lot, idx) => {
                   const isLow = lot.stockLevel < lot.minStock;
+                  const isEven = idx % 2 === 1;
                   return (
-                    <tr key={lot.id} className={`hover:bg-slate-50/50 transition-colors ${isLow ? 'bg-red-50/30' : ''}`}>
-                      <td className="p-3 text-center font-mono text-slate-400">{idx + 1}</td>
-                      <td className="p-3 font-mono font-bold select-all text-slate-900 bg-slate-100 border border-slate-200 rounded px-1.5 py-0.5 inline-block my-1.5">{lot.code}</td>
-                      <td className="p-3 font-bold text-slate-950">{lot.materialName}</td>
-                      <td className="p-3 font-mono font-bold text-indigo-700 select-all">{lot.lotNo}</td>
-                      <td className="p-3 font-mono font-semibold text-slate-600">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-indigo-500" /> {lot.location}</span>
+                    <tr key={lot.id} className={`${isEven ? 'bg-slate-50/75' : 'bg-white'} hover:bg-slate-100/90 transition-colors h-14`}>
+                      <td className="p-3 text-center font-mono text-slate-500 font-bold">{idx + 1}</td>
+                      <td className="p-3">
+                        <span className="font-mono font-bold select-all text-indigo-950 bg-indigo-50 border border-indigo-150 rounded px-1.5 py-0.5 inline-block my-1.5">{lot.code}</span>
                       </td>
-                      <td className="p-3 font-mono text-slate-400">{lot.receiveDate}</td>
+                      <td className="p-3 font-extrabold text-slate-950 text-xs">{lot.materialName}</td>
+                      <td className="p-3 font-mono font-black text-indigo-850 select-all">{lot.lotNo}</td>
+                      <td className="p-3 font-mono font-bold text-slate-800">
+                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3 text-indigo-600 font-black" /> {lot.location}</span>
+                      </td>
+                      <td className="p-3 font-mono text-slate-800">{lot.receiveDate}</td>
                       <td className="p-3 font-mono">
-                        <span className={`font-semibold ${new Date(lot.expiryDate).getTime() < Date.now() + (30*24*60*60*1000) ? 'text-red-500 font-bold' : 'text-slate-600'}`}>{lot.expiryDate}</span>
+                        <span className={`font-bold ${new Date(lot.expiryDate).getTime() < Date.now() + (30*24*60*60*1000) ? 'text-rose-600 font-black decoration-rose-600 font-mono scale-105' : 'text-slate-750'}`}>{lot.expiryDate}</span>
                       </td>
-                      <td className="p-3 text-right font-mono font-bold text-slate-900">
-                        <span className={isLow ? 'text-red-600 bg-red-100/50 px-1 py-0.5 rounded' : ''}>
+                      <td className="p-3 text-right font-mono font-black text-slate-950 text-xs">
+                        <span className={isLow ? 'text-rose-700 bg-rose-100/90 border border-rose-300 px-1.5 py-0.5 rounded font-black' : ''}>
                           {lot.stockLevel.toLocaleString()}
                         </span>
                       </td>
-                      <td className="p-3 text-center text-slate-400 font-semibold">{lot.unit}</td>
+                      <td className="p-3 text-center text-slate-950 font-black">{lot.unit}</td>
                       <td className="p-3 text-center">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                          lot.status === 'Released' ? 'bg-green-150 text-green-700' :
-                          lot.status === 'Quarantine' ? 'bg-slate-100 text-slate-600' :
-                          'bg-red-50 text-red-600'
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black ${
+                          lot.status === 'Released' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
+                          lot.status === 'Quarantine' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                          'bg-rose-100 text-rose-900 border border-rose-350'
                         }`}>
-                          {lot.status === 'Released' ? 'Stock OK' : 
-                          lot.status === 'Quarantine' ? 'Quarantine' : lot.status}
+                          {lot.status === 'Released' ? '🟢 Released' : 
+                          lot.status === 'Quarantine' ? '🟡 Quarantine' : lot.status}
                         </span>
                       </td>
                       <td className="p-3 text-center">
@@ -408,10 +410,10 @@ export default function WarehouseOS({ dbState, onRefresh, onNotify, userRole }: 
                               setAdjForm(prev => ({ ...prev, materialId: lot.code, lotNumber: lot.lotNo }));
                               setShowAdjModal(true);
                             }}
-                            className="p-1 px-2.5 bg-yellow-500 text-slate-950 rounded-lg hover:border-slate-800 flex items-center gap-1 transition-all text-[10px] font-bold"
-                            title="ส่องประมวลนับและปรับปรุงสต็อก (Edit Stock)"
+                            className="p-1 px-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg flex items-center gap-1 transition-all text-[10px] font-black cursor-pointer shadow-xs"
+                            title="ปรับปรุงยอดสต็อกคลัง (Adjust Stock Level)"
                           >
-                            <Edit className="h-3 w-3" /> แก้ไขยอด
+                            <Edit className="h-3 w-3 text-slate-950" /> แก้ไขยอด
                           </button>
                         </div>
                       </td>

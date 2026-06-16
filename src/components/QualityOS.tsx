@@ -118,7 +118,7 @@ export default function QualityOS({ dbState, onRefresh, onNotify, userRole }: Qu
         csvContent += `"${aud.type}","${aud.details}","${aud.initiator}","${aud.approvedDate}","${aud.severity}","${aud.status}"\n`;
       });
     }
-    
+
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -126,7 +126,7 @@ export default function QualityOS({ dbState, onRefresh, onNotify, userRole }: Qu
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    onNotify('ส่งออกไฟล์ข้อมูลรายงาน (XLS, CSV格式) สำเร็จแล้ว', 'info');
+    onNotify('ส่งออกไฟล์ข้อมูลรายงาน (XLS, CSV) สำเร็จแล้ว', 'info');
   };
 
   const printSheet = () => {
@@ -168,85 +168,93 @@ export default function QualityOS({ dbState, onRefresh, onNotify, userRole }: Qu
               <Beaker className="h-5 w-5 text-indigo-600" />
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">สถานีควบคุมคุณภาพเคมีเครื่องสำอาง (Quality Control Laboratory)</h3>
-                <p className="text-[11px] text-slate-400">ควบคุมระดับความเป็นกรดด่าง (pH) ความตึงเมือก (Viscosity) และส่องประชากรแบคทีเรียชีวภาพตามกฎหมาย ASEAN Cosmetics Directive</p>
+                <p className="text-[11px] text-slate-400">ควบคุมระดับความเป็นกรดด่าง (pH) ความตึงเมือก (Viscosity) และส่องประชากรจุลชีพเชื้อสะสมด้วยมาตรฐานระเบียบ GMP</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={exportExcel} type="button" className="p-1 px-3 bg-green-600 text-white text-[11px] font-bold rounded-lg hover:bg-green-700 flex items-center gap-1">
-                <FileSpreadsheet className="h-3.5 w-3.5" /> Excel
-              </button>
-              <button onClick={printSheet} type="button" className="p-1 px-3 bg-[#0071E3] text-white text-[11px] font-bold rounded-lg hover:bg-[#147ce5] flex items-center gap-1">
-                <Printer className="h-3.5 w-3.5" /> Print QC
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ค้นหา Batch หรือผู้ตรวจสอบ..."
+                  className="pl-9 pr-4 py-2 bg-neutral-50 rounded-xl border border-slate-200 text-xs focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  value={qcSearch}
+                  onChange={(e) => setQcSearch(e.target.value)}
+                />
+              </div>
+              <button onClick={exportExcel} type="button" className="p-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4" /> Export CSV
               </button>
             </div>
           </div>
 
-          <div className="relative max-w-sm">
-            <input
-              type="text"
-              placeholder="ค้นหาตามรหัส Batch การผลิตหรือเจ้าหน้าที่..."
-              className="w-full bg-slate-50 border border-slate-200 p-2 pl-8 rounded-lg outline-none text-xs text-slate-800"
-              value={qcSearch}
-              onChange={(e) => setQcSearch(e.target.value)}
-            />
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
-          </div>
-
-          {/* QC DataTable */}
-          <div className="overflow-x-auto border border-slate-100 rounded-lg">
+          <div className="overflow-x-auto border border-[#E2E8F0] rounded-2xl shadow-sm">
             <table className="w-full text-left text-xs border-collapse font-sans">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
-                  <th className="p-3 w-12 text-center">No.</th>
-                  <th className="p-3">รหัส Batch ผลิตภัณฑ์</th>
-                  <th className="p-3">เจ้าหน้าที่ตรวจ</th>
-                  <th className="p-3">ทดสอบ pH Level</th>
-                  <th className="p-3">แรงตึงหนืด Viscosity</th>
-                  <th className="p-3">เชื้อเคมีปนเปื้อน (Microbiological)</th>
-                  <th className="p-3">ลักษณะทางกายภาพภายนอก (Physical)</th>
-                  <th className="p-3 text-center">วันเสร็จตรวจ</th>
-                  <th className="p-3 text-center">สถานะแล็บ</th>
-                  <th className="p-3 text-center w-32">คำสั่ง</th>
+                <tr className="bg-[#0B3C5D] border-b border-indigo-950 text-white font-black select-none sticky top-0 z-10 h-11">
+                  <th className="p-3 w-12 text-center text-white">No.</th>
+                  <th className="p-3 text-white">รหัส Batch ผลิตภัณฑ์</th>
+                  <th className="p-3 text-white">เจ้าหน้าที่ตรวจ</th>
+                  <th className="p-3 text-white">ทดสอบ pH Level</th>
+                  <th className="p-3 text-white">แรงตึงหนืด Viscosity</th>
+                  <th className="p-3 text-white">เชื้อเคมีปนเปื้อน (Microbiological)</th>
+                  <th className="p-3 text-white">ลักษณะทางกายภาพภายนอก (Physical)</th>
+                  <th className="p-3 text-center text-white">วันเสร็จตรวจ</th>
+                  <th className="p-3 text-center text-white">สถานะแล็บ</th>
+                  <th className="p-3 text-center w-32 text-white">คำสั่ง</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                {filterQc.map((qc, idx) => (
-                  <tr key={qc.id} className="hover:bg-slate-50">
-                    <td className="p-3 text-center text-slate-400 font-mono">{idx + 1}</td>
-                    <td className="p-3 font-bold text-slate-900">{qc.batchNo}</td>
-                    <td className="p-3 font-semibold">{qc.inspector}</td>
-                    <td className="p-3 font-mono">{qc.pHVal}</td>
-                    <td className="p-3 font-mono">{qc.viscosity}</td>
-                    <td className="p-3 font-mono">{qc.microCount}</td>
-                    <td className="p-3 text-slate-500">{qc.physical}</td>
-                    <td className="p-3 text-center font-mono text-slate-400">{qc.date}</td>
-                    <td className="p-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold ${
-                        qc.status === 'Passed' ? 'bg-green-150 text-green-700' :
-                        qc.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-50 text-red-650'
-                      }`}>
-                        {qc.status}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center">
-                      {qc.status === 'Pending' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleApproveQC(idx)}
-                          className="p-1 px-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-[10px] font-bold"
-                        >
-                          อนุมัติปล่อยผ่าน ✓
-                        </button>
-                      ) : (
-                        <div className="flex gap-1 justify-center">
-                          <button type="button" onClick={() => onNotify(`แสดงข้อมูลผลสอบกระดาษ QC: ${qc.batchNo}`, 'info')} className="p-1 px-2.5 bg-[#0071E3] text-white text-[10px] font-bold rounded">
-                            ดูข้อมูล
-                          </button>
-                        </div>
-                      )}
-                    </td>
+              <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
+                {filterQc.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="p-8 text-center text-slate-500 font-extrabold">ไม่พบข้อมูลผลตรวจรับรองเข้าเงื่อนไข</td>
                   </tr>
-                ))}
+                ) : (
+                  filterQc.map((qc, idx) => {
+                    const isEven = idx % 2 === 1;
+                    return (
+                      <tr key={qc.id} className={`${isEven ? 'bg-[#F8FBFF]' : 'bg-white'} hover:bg-[#EAF3FF] transition-colors h-14`}>
+                        <td className="p-3 text-center text-slate-500 font-mono font-bold">{idx + 1}</td>
+                        <td className="p-3 font-black text-indigo-950">{qc.batchNo}</td>
+                        <td className="p-3 font-extrabold text-slate-900">{qc.inspector}</td>
+                        <td className="p-3 font-mono text-slate-800">{qc.pHVal}</td>
+                        <td className="p-3 font-mono text-slate-800">{qc.viscosity}</td>
+                        <td className="p-3 font-mono text-slate-800">{qc.microCount}</td>
+                        <td className="p-3 text-slate-700 font-extrabold">{qc.physical}</td>
+                        <td className="p-3 text-center font-mono text-slate-500">{qc.date}</td>
+                        <td className="p-3 text-center">
+                          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-black ${
+                            qc.status === 'Passed' ? 'bg-emerald-100 text-emerald-900 border border-emerald-300' :
+                            qc.status === 'Pending' ? 'bg-amber-100 text-amber-900 border border-amber-300 animate-pulse' : 'bg-rose-100 text-rose-900 border border-rose-350'
+                          }`}>
+                            {qc.status === 'Passed' ? '🟢 ผ่าน' : qc.status === 'Pending' ? '🟡 รอผลตรวจ' : '🔴 ไม่ผ่าน'}
+                          </span>
+                        </td>
+                        <td className="p-3 text-center">
+                          {qc.status === 'Pending' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleApproveQC(idx)}
+                              className="p-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[10px] font-extrabold cursor-pointer active:scale-95 transition-all shadow-xs"
+                            >
+                              อนุมัติปล่อยผ่าน ✓
+                            </button>
+                          ) : (
+                            <div className="flex gap-1 justify-center">
+                              <button
+                                type="button"
+                                onClick={() => onNotify(`แสดงข้อมูลผลสอบกระดาษ QC: ${qc.batchNo}`, 'info')}
+                                className="p-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-extrabold rounded-xl shadow-xs cursor-pointer"
+                              >
+                                ดูข้อมูล
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -335,47 +343,50 @@ export default function QualityOS({ dbState, onRefresh, onNotify, userRole }: Qu
           </div>
 
           {/* COA DataTable */}
-          <div className="overflow-x-auto border border-slate-100 rounded-lg">
+          <div className="overflow-x-auto border border-[#E2E8F0] rounded-2xl shadow-sm">
             <table className="w-full text-left text-xs border-collapse font-sans">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold">
-                  <th className="p-3">รหัส GRN เชื่อมโยง</th>
-                  <th className="p-3">ชื่อเคมีสกัด</th>
-                  <th className="p-3">ซัพพลายเออร์ผู้จัดส่ง</th>
-                  <th className="p-3">รหัสล็อต (Supplier Lot)</th>
-                  <th className="p-3">ความบริสุทธิ์ (Purity)</th>
-                  <th className="p-3">ประเมินวันตรวจ</th>
-                  <th className="p-3">พิจารณาโดย</th>
-                  <th className="p-3">ชื่อไฟล์ PDF</th>
-                  <th className="p-3 text-center">ผลลัพธ์</th>
-                  <th className="p-3 text-center">คำสั่งแสดง</th>
+                <tr className="bg-[#0B3C5D] border-b border-indigo-950 text-white font-black select-none sticky top-0 z-10 h-11">
+                  <th className="p-3 text-white">รหัส GRN เชื่อมโยง</th>
+                  <th className="p-3 text-white">ชื่อเคมีสกัด</th>
+                  <th className="p-3 text-white">ซัพพลายเออร์ผู้จัดส่ง</th>
+                  <th className="p-3 text-white">รหัสล็อต (Supplier Lot)</th>
+                  <th className="p-3 text-white">ความบริสุทธิ์ (Purity)</th>
+                  <th className="p-3 text-white">ประเมินวันตรวจ</th>
+                  <th className="p-3 text-white">พิจารณาโดย</th>
+                  <th className="p-3 text-white">ชื่อไฟล์ PDF</th>
+                  <th className="p-3 text-center text-white">ผลลัพธ์</th>
+                  <th className="p-3 text-center text-white">คำสั่งแสดง</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700 font-medium">
-                {filterCoa.map(coa => (
-                  <tr key={coa.id} className="hover:bg-slate-50">
-                    <td className="p-3 font-mono font-bold text-slate-900">{coa.grn}</td>
-                    <td className="p-3 font-bold text-indigo-900">{coa.rmName}</td>
-                    <td className="p-3">{coa.supplier}</td>
-                    <td className="p-3 font-mono text-indigo-700 select-all">{coa.lotNo}</td>
-                    <td className="p-3 font-mono">{coa.purity}</td>
-                    <td className="p-3 font-mono text-slate-400">{coa.date}</td>
-                    <td className="p-3 text-slate-500">{coa.auditor}</td>
-                    <td className="p-3 text-indigo-600 font-mono text-[10px] underline">{coa.docUrl}</td>
-                    <td className="p-3 text-center">
-                      <span className="bg-green-150 text-green-700 px-2.5 py-0.5 rounded-full text-[9px] font-bold">COA Release</span>
-                    </td>
-                    <td className="p-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCoa(coa)}
-                        className="p-1 px-2.5 bg-[#0071E3] hover:bg-[#147ce5] text-white text-[10px] font-bold rounded-lg flex items-center justify-center gap-1 mx-auto"
-                      >
-                        <Eye className="h-3 w-3" /> Preview PDF
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-slate-100 text-slate-900 font-bold">
+                {filterCoa.map((coa, idx) => {
+                  const isEven = idx % 2 === 1;
+                  return (
+                    <tr key={coa.id} className={`${isEven ? 'bg-[#F8FBFF]' : 'bg-white'} hover:bg-[#EAF3FF] transition-colors h-14`}>
+                      <td className="p-3 font-mono font-black text-slate-900">{coa.grn}</td>
+                      <td className="p-3 font-extrabold text-indigo-900">{coa.rmName}</td>
+                      <td className="p-3 text-slate-800">{coa.supplier}</td>
+                      <td className="p-3 font-mono font-black text-indigo-750 select-all">{coa.lotNo}</td>
+                      <td className="p-3 font-mono text-slate-800">{coa.purity}</td>
+                      <td className="p-3 font-mono text-slate-500">{coa.date}</td>
+                      <td className="p-3 text-slate-700 font-extrabold">{coa.auditor}</td>
+                      <td className="p-3 text-indigo-750 font-mono text-[11px] underline select-all">{coa.docUrl}</td>
+                      <td className="p-3 text-center">
+                        <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-2.5 py-1 rounded-full text-[10px] font-black">COA Release</span>
+                      </td>
+                      <td className="p-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCoa(coa)}
+                          className="p-1.5 px-3 bg-[#0071E3] hover:bg-[#147ce5] text-white text-[10px] font-black rounded-xl flex items-center justify-center gap-1 mx-auto shadow-xs active:scale-95 cursor-pointer transition-all"
+                        >
+                          <Eye className="h-3 w-3" /> Preview PDF
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

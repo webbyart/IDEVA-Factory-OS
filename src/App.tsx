@@ -9,7 +9,8 @@ import {
   QrCode, Play, ChevronRight, User, Settings, Info, BrainCircuit, Beaker, 
   Clipboard, FileSpreadsheet, Kanban, Database, FileText, Search, Printer, 
   Upload, Tag, LayoutDashboard, ExternalLink, Minimize2, PlusCircle,
-  Sun, Moon, Menu, ChevronDown, Home
+  Sun, Moon, Menu, ChevronDown, Home,
+  ShoppingBag, BarChart3, UserPlus, Globe2, Send, Minimize, Maximize2, MessageCircle
 } from 'lucide-react';
 
 // Subcomponents import
@@ -124,6 +125,43 @@ export default function App() {
   
   // Notification logs toast state
   const [toasts, setToasts] = useState<{ id: string, msg: string, type: 'info' | 'warning' | 'error' }[]>([]);
+  
+  // AdminLTE 4 Direct Chat states
+  const [chatMessages, setChatMessages] = useState([
+    { id: '1', sender: 'Alexander Pierce', text: 'Is this template really for free? That\'s unbelievable!', time: '23 Jan 2:00 pm', isMe: false },
+    { id: '2', sender: 'Sarah Bullock', text: 'You better believe it!', time: '23 Jan 2:05 pm', isMe: true },
+    { id: '3', sender: 'Alexander Pierce', text: 'Wow, this is awesome! We can build incredible factory operating systems out of it.', time: '23 Jan 5:37 pm', isMe: false },
+  ]);
+  const [chatInput, setChatInput] = useState('');
+
+  const handleSendChatMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    const userMsgId = `${Date.now()}`;
+    const newMsg = {
+      id: userMsgId,
+      sender: userRole === 'Admin' ? 'Icie Reynolds' : userRole,
+      text: chatInput,
+      time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      isMe: true
+    };
+    setChatMessages(prev => [...prev, newMsg]);
+    setChatInput('');
+    
+    // Simulate smart agent reply in 1.2 seconds
+    setTimeout(() => {
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: `${Date.now()}-reply`,
+          sender: 'Alexander Pierce',
+          text: `Roger that! Message received at IDEVA Factory Engine. Let's work on dashboard v4 optimization! ⚙️`,
+          time: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+          isMe: false
+        }
+      ]);
+    }, 1200);
+  };
   
 
 
@@ -284,40 +322,42 @@ export default function App() {
   );
 
   return (
-    <div className={`flex min-h-screen antialiased transition-colors duration-150 ${isDarkMode ? 'bg-[#0f111a] text-slate-100' : 'bg-[#eef2f5] text-[#212529]'}`} id="ideva-applet-root">
+    <div className={`flex min-h-screen antialiased transition-colors duration-150 ${isDarkMode ? 'bg-[#0d0f17] text-slate-100' : 'bg-[#f1f5f9] text-[#1e293b]'}`} id="ideva-applet-root">
       
       {/* Drawer backdrop for mobile when sidebar is open */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/40 z-30 md:hidden transition-opacity duration-200"
+          className="fixed inset-0 bg-black/45 z-30 md:hidden transition-opacity duration-200"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* 1. AdminLTE 3 Responsive Theme Sidebar */}
-      <aside className={`bg-[#343a40] text-[#c2c7d0] flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out fixed inset-y-0 left-0 z-40 md:static ${
+      <aside className={`flex flex-col shrink-0 select-none transition-all duration-300 ease-in-out fixed inset-y-0 left-0 z-40 md:static ${
         sidebarOpen ? 'w-72 translate-x-0' : 'w-0 -translate-x-full md:w-0 md:opacity-0 md:-translate-x-full'
       } ${
-        isDarkMode ? 'bg-[#151821] border-r border-[#242936] text-slate-350' : 'bg-[#343a40] border-r border-[#2c3138] text-slate-200'
+        isDarkMode 
+          ? 'bg-[#0a0c14] border-r border-[#1a1c2a] text-slate-300' 
+          : 'bg-[#ffffff] border-r border-slate-200/85 text-slate-650'
       }`}>
         
-        {/* Brand Banner (AdminLTE 3 style) */}
-        <div className={`p-4 border-b flex items-center justify-between gap-3 text-white ${
-          isDarkMode ? 'border-[#242936] bg-[#0d0f17]' : 'border-slate-705 bg-[#23272b]'
+        {/* Brand Banner (Premium Modern Style) */}
+        <div className={`p-4 border-b flex items-center justify-between gap-3 ${
+          isDarkMode ? 'border-[#1a1c2a] bg-[#07080d] text-white' : 'border-slate-100 bg-[#fbfcfd] text-slate-900'
         }`}>
           <div className="flex items-center gap-2.5">
-            <div className="p-2.5 bg-[#FF9500] rounded-xl text-white shadow-md animate-pulse">
-              <Building className="h-5 w-5" />
+            <div className="p-2 py-2 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-xl text-white shadow-sm">
+              <Building className="h-5 w-5 animate-pulse" />
             </div>
             <div>
-              <h1 className="font-extrabold text-xs tracking-wider font-sans text-white uppercase">IDEVA Factory OS</h1>
-              <p className="text-[9px] text-green-400 font-extrabold uppercase mt-0.5 tracking-wider">ASEAN GMP & ISO 22716</p>
+              <h1 className={`font-black text-xs tracking-wider uppercase ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>IDEVA Factory OS</h1>
+              <p className="text-[9px] text-[#219653] font-black uppercase mt-0.5 tracking-wider font-mono">ASEAN GMP & ISO 22716</p>
             </div>
           </div>
           {/* Collapse side-button inside mobile sidebar for quick close */}
           <button 
             onClick={() => setSidebarOpen(false)}
-            className="p-1 text-slate-400 hover:text-white rounded-md md:hidden"
+            className="p-1 text-slate-400 hover:text-slate-650 dark:hover:text-white rounded-md md:hidden cursor-pointer"
             title="Close sidebar"
             type="button"
           >
@@ -325,27 +365,59 @@ export default function App() {
           </button>
         </div>
 
-        {/* User Status Panel (Classic AdminLTE 3 hallmark) */}
+        {/* User Status Panel (Premium Modern Style) */}
         <div className={`p-4 border-b flex items-center gap-3 ${
-          isDarkMode ? 'border-[#242936] bg-[#1a1d29]' : 'border-slate-705 bg-[#2e3439]'
+          isDarkMode ? 'border-[#1a1c2a] bg-[#0c0d15]/50' : 'border-slate-100/70 bg-slate-50/40'
         }`}>
-          <div className="h-10 w-10 rounded-full bg-sky-600 font-bold border border-slate-600 flex items-center justify-center text-white text-sm tracking-tight select-none shadow-sm">
+          <div className="h-9 w-9 rounded-full bg-indigo-650 font-bold border border-indigo-400 flex items-center justify-center text-white text-xs tracking-tight select-none shadow-xs">
             {userRole.substring(0, 2).toUpperCase()}
           </div>
           <div className="flex-1 overflow-hidden">
-            <p className="text-xs font-bold text-white leading-snug truncate">{userRole || 'Operator'}</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-[9.5px] text-emerald-400 font-extrabold font-mono uppercase tracking-wider">● ONLINE / คุมสิทธิ์</span>
+            <p className={`text-xs font-bold leading-snug truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>{userRole || 'Operator'}</p>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[9.5px] text-emerald-650 dark:text-emerald-400 font-extrabold font-mono uppercase tracking-wider">● ONLINE / คุมสิทธิ์</span>
             </div>
           </div>
         </div>
 
+        {/* Sidebar Search Input matching AdminLTE 4 */}
+        <div className="px-3.5 pt-4 pb-1">
+          <div className="relative">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 dark:text-slate-500">
+              <Search className="h-3.5 w-3.5" />
+            </span>
+            <input 
+              type="text"
+              value={sidebarSearch}
+              onChange={(e) => setSidebarSearch(e.target.value)}
+              placeholder="Search Menu..."
+              className={`w-full p-2.5 pl-9 pr-8 text-xs font-medium rounded-lg outline-none transition-all ${
+                isDarkMode 
+                  ? 'bg-slate-900 border border-slate-800/80 text-slate-205 focus:border-indigo-600' 
+                  : 'bg-slate-100 border border-slate-200 text-slate-700 focus:border-indigo-600'
+              }`}
+            />
+            {sidebarSearch && (
+              <button 
+                onClick={() => setSidebarSearch('')}
+                className="absolute inset-y-0 right-0 flex items-center pr-2.5 text-slate-400 hover:text-slate-200 cursor-pointer text-xs font-bold"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Dynamic Sidebar Menu Categories */}
-        <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto no-scrollbar font-sans">
+        <nav className="flex-1 px-3.5 py-4 space-y-4 overflow-y-auto no-scrollbar font-sans">
           {Array.from(new Set(filteredMenuItems.map(m => m.category))).map(cat => (
             <div key={cat} className="space-y-1">
-              <p className="px-2.5 text-[9.5px] font-extrabold text-[#94a3b8] uppercase tracking-widest border-l-2 border-[#0071E3] mb-2">{cat}</p>
+              <p className={`px-2.5 text-[9.5px] font-bold uppercase tracking-widest border-l-2 mb-2 ${
+                isDarkMode 
+                  ? 'text-slate-500 border-indigo-550' 
+                  : 'text-slate-400 border-indigo-600'
+              }`}>{cat}</p>
               {filteredMenuItems.filter(i => i.category === cat).map(item => {
                 const IconComp = item.icon;
                 const isSelected = activeTab === item.id;
@@ -360,17 +432,27 @@ export default function App() {
                         setSidebarOpen(false);
                       }
                     }}
-                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 text-left ${
+                    className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 text-left cursor-pointer group ${
                       isSelected 
-                        ? 'bg-[#0071E3] text-white font-bold shadow-md transform scale-[1.02]' 
-                        : 'text-slate-300 hover:text-white hover:bg-slate-750'
+                        ? 'bg-indigo-600 text-white shadow-xs' 
+                        : isDarkMode
+                          ? 'text-slate-400 hover:text-white hover:bg-slate-800/55' 
+                          : 'text-slate-600 hover:text-indigo-600 hover:bg-slate-50'
                     }`}
                   >
                     <span className="flex items-center gap-3">
-                      <IconComp className={`h-4.5 w-4.5 ${isSelected ? 'text-white' : 'text-[#86868B]'}`} /> 
+                      <IconComp className={`h-4.5 w-4.5 transition-colors ${
+                        isSelected 
+                          ? 'text-white' 
+                          : isDarkMode ? 'text-slate-500 group-hover:text-slate-300' : 'text-slate-400 group-hover:text-indigo-650'
+                      }`} /> 
                       <span>{item.label}</span>
                     </span>
-                    <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isSelected ? 'translate-x-0.5 text-white' : 'text-slate-600'}`} />
+                    <ChevronRight className={`h-3.5 w-3.5 transition-transform ${
+                      isSelected 
+                        ? 'translate-x-0.5 text-white' 
+                        : isDarkMode ? 'text-slate-650' : 'text-slate-300'
+                    }`} />
                   </button>
                 );
               })}
@@ -381,19 +463,21 @@ export default function App() {
         {/* Sidebar Footer User Role and Sync */}
         <div 
           onClick={() => setActiveTab('database_setup')}
-          className={`p-4 border-t text-[10.5px] text-slate-400 space-y-1.5 cursor-pointer hover:bg-slate-850/40 transition-all ${
-            isDarkMode ? 'border-[#242936] bg-[#0c0d15]' : 'border-slate-750 bg-[#23272b]'
+          className={`p-4 border-t text-[10.5px] space-y-1.5 cursor-pointer transition-all ${
+            isDarkMode 
+              ? 'border-[#1a1c2a] bg-[#06080e] text-slate-450 hover:bg-[#0c0e16]' 
+              : 'border-slate-100 bg-[#fcfdfe] text-slate-500 hover:bg-slate-50'
           }`}
           title="คลิกเพื่อตั้งค่าเครื่องยนต์ฐานข้อมูล"
         >
-          <div className="flex justify-between items-center font-semibold text-white">
+          <div className="flex justify-between items-center font-bold">
             <span className="flex items-center gap-1.5 text-xs">
-              <Database className="h-3.5 w-3.5 text-indigo-400" />
-              <span>ไดรเวอร์: {activeDbConfig.type?.toUpperCase()}</span>
+              <Database className="h-3.5 w-3.5 text-indigo-500" />
+              <span className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>ไดรเวอร์: {activeDbConfig.type?.toUpperCase()}</span>
             </span>
-            <span className="text-emerald-400 font-extrabold text-[9px] uppercase font-mono animate-pulse">● Active</span>
+            <span className="text-emerald-555 font-black text-[9px] uppercase font-mono animate-pulse">● Active</span>
           </div>
-          <p className="text-[10px] text-slate-400 font-mono truncate">
+          <p className={`text-[9.5px] font-mono truncate ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
             {activeDbConfig.type === 'supabase' ? 'Supabase cloud cloud tables' : `${activeDbConfig.host || '127.0.0.1'} • Port ${activeDbConfig.port || ''}`}
           </p>
         </div>
@@ -491,12 +575,12 @@ export default function App() {
 
         {/* 3. Floating Global Action Toolbar (AdminLTE Style Action Strip) */}
         <div className={`px-4 sm:px-6 py-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 select-none border-b transition-colors duration-150 ${
-          isDarkMode ? 'bg-[#151825] border-[#252b42] text-slate-300' : 'bg-slate-900 border-slate-800 text-slate-200'
+          isDarkMode ? 'bg-[#121522] border-[#1e2336] text-slate-300' : 'bg-slate-100/90 border-slate-200/80 text-slate-655'
         }`}>
           <div className="flex items-center gap-2">
-            <Cpu className="h-4.5 w-4.5 text-[#FF9500]" />
-            <span className="font-mono text-xs font-extrabold text-slate-300">
-              สถานีงานคีย์: <strong className="text-white uppercase ml-1.5 tracking-wider">{activeTab.replace('_', ' ')} workstation</strong>
+            <Cpu className="h-4 w-4 text-indigo-500" />
+            <span className={`font-mono text-xs font-bold ${isDarkMode ? 'text-slate-350' : 'text-slate-550'}`}>
+              สถานีงานคีย์: <strong className={`${isDarkMode ? 'text-white' : 'text-slate-800'} uppercase ml-1.5 tracking-wider`}>{activeTab.replace('_', ' ')} workstation</strong>
             </span>
           </div>
 
@@ -504,22 +588,22 @@ export default function App() {
             <button
               onClick={handleGlobalExportExcel}
               type="button"
-              className="p-1.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 font-semibold rounded-xl text-white text-[10.5px] flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+              className="p-1.5 px-3.5 bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl text-white text-[10.5px] flex items-center gap-1.5 transition-all active:scale-95 shadow-xs cursor-pointer"
             >
               <FileSpreadsheet className="h-3.5 w-3.5" /> Excel แผ่นงาน
             </button>
             <button
               onClick={handleGlobalExportPdf}
               type="button"
-              className="p-1.5 px-3.5 bg-[#0071E3] hover:bg-[#147ce5] font-semibold rounded-xl text-white text-[10.5px] flex items-center gap-1.5 transition-all active:scale-95 shadow-sm"
+              className="p-1.5 px-3.5 bg-indigo-600 hover:bg-indigo-750 font-bold rounded-xl text-white text-[10.5px] flex items-center gap-1.5 transition-all active:scale-95 shadow-xs cursor-pointer"
             >
               <FileText className="h-3.5 w-3.5" /> เอกสาร PDF
             </button>
             <button
               onClick={handleGlobalPrint}
               type="button"
-              className={`p-1.5 px-3.5 border font-semibold rounded-xl text-[10.5px] flex items-center gap-1.5 transition-all active:scale-95 shadow-xs ${
-                isDarkMode ? 'bg-slate-800 hover:bg-slate-750 border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-100 border-[#E5E5EA] text-slate-700'
+              className={`p-1.5 px-3.5 border font-bold rounded-xl text-[10.5px] flex items-center gap-1.5 transition-all active:scale-95 shadow-xs cursor-pointer ${
+                isDarkMode ? 'bg-slate-850 hover:bg-slate-800 border-slate-700 text-slate-200' : 'bg-white hover:bg-slate-50 border-slate-250 text-slate-700'
               }`}
             >
               <Printer className="h-3.5 w-3.5" /> พิมพ์บันทึก SOP
@@ -530,7 +614,7 @@ export default function App() {
                 addToast("เปิดศูนย์บันทึกตรวจสอบสิทธิ์และกิจกรรมหลังบ้าน (Audit Log)", "info");
               }}
               type="button"
-              className="p-1.5 px-3.5 bg-amber-500 hover:bg-amber-600 font-semibold rounded-xl text-slate-950 text-[10.5px] flex items-center gap-1 transition-all active:scale-95 shadow-sm"
+              className="p-1.5 px-3.5 bg-amber-500 hover:bg-amber-600 font-bold rounded-xl text-slate-950 text-[10.5px] flex items-center gap-1 transition-all active:scale-95 shadow-xs cursor-pointer"
             >
               ประวัติตรวจสอบ (Audit Log)
             </button>
@@ -553,147 +637,389 @@ export default function App() {
           
           {/* Module 1: Dashboard */}
           {activeTab === 'dashboard' && (
-            <div className="space-y-6">
+            <div className="space-y-6 animate-fade-in font-sans">
               
-              {/* SAP/Odoo/AdminLTE 3 style KPI Small Boxes */}
+              {/* AdminLTE 4 Page Header */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-3 border-b border-slate-200 dark:border-slate-800 gap-2">
+                <div>
+                  <h1 className="text-2xl font-semibold tracking-tight text-slate-800 dark:text-white uppercase">
+                    Dashboard
+                  </h1>
+                </div>
+                <div className="flex items-center gap-1 text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest font-mono select-none">
+                  <span className="hover:text-indigo-500 cursor-pointer transition-colors" onClick={() => navigateTo('dashboard')}>Home</span>
+                  <span>/</span>
+                  <span className="text-slate-700 dark:text-slate-350">Dashboard</span>
+                </div>
+              </div>
+
+              {/* AdminLTE 4 Small Boxes KPI Panel */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5" id="kpi-panel">
                 
-                {/* Small Box 1: ฟ้า (Blue) - Gross Revenue */}
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#005bb7] to-[#0071E3] text-white shadow-md transition-transform hover:scale-[1.01] flex flex-col justify-between h-36 group">
+                {/* 1. Blue Box: New Orders */}
+                <div className="relative overflow-hidden rounded-md bg-[#0d6efd] text-white shadow-sm flex flex-col justify-between h-[130px] group transition-all hover:translate-y-[-2px]">
                   <div className="p-4 flex justify-between items-start">
                     <div className="space-y-1">
-                      <p className="text-white/80 text-[10.5px] font-extrabold uppercase tracking-wider font-sans">Gross Revenue (บัญชีรายรับ)</p>
-                      <p className="text-2xl font-extrabold font-mono tracking-tight text-white leading-none">฿{totalRevenues.toLocaleString()}</p>
-                      <p className="text-[10px] text-sky-100 bg-white/15 px-1.5 py-0.5 rounded-md inline-block font-bold">✓ Net Margin: +15.4% GP</p>
+                      <p className="text-3xl font-black font-mono tracking-tight text-white leading-none">
+                        {dbState.salesJobs?.length || 150}
+                      </p>
+                      <p className="text-xs font-medium text-white/95 mt-1.5 font-sans">New Orders</p>
                     </div>
-                    <DollarSign className="h-14 w-14 absolute right-2 top-2 text-white/10 group-hover:scale-110 transition-all duration-200" />
+                    <ShoppingBag className="h-16 w-16 absolute right-2.5 top-2.5 text-black/15 pointer-events-none group-hover:scale-110 transition-transform duration-200" />
                   </div>
                   <button 
                     onClick={() => {
-                      navigateTo('purchasing');
-                      addToast("สลับสถานีงาน ไปที่ 'ด่านจัดซื้อจัดหา PR/PO (Purchasing)'", "info");
+                      navigateTo('job_management');
+                      addToast("เปิดสารบันทะเบียนตั๋วรับงานสั่งผลิต (Sales Jobs)", "info");
                     }}
-                    className="w-full bg-black/15 hover:bg-black/35 text-white/95 text-[10.5px] py-2 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100"
+                    className="w-full bg-black/15 hover:bg-black/25 text-white/95 text-[10.5px] py-1.5 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100 cursor-pointer"
                   >
-                    <span>เปิดผังบัญชีจัดซื้อ (More info)</span>
-                    <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                    <span>More info</span>
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
 
-                {/* Small Box 2: เขียว (Green) - WMS Stock */}
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#219653] to-[#34C759] text-white shadow-md transition-transform hover:scale-[1.01] flex flex-col justify-between h-36 group">
+                {/* 2. Green Box: Bounce Rate */}
+                <div className="relative overflow-hidden rounded-md bg-[#198754] text-white shadow-sm flex flex-col justify-between h-[130px] group transition-all hover:translate-y-[-2px]">
                   <div className="p-4 flex justify-between items-start">
                     <div className="space-y-1">
-                      <p className="text-white/80 text-[10.5px] font-extrabold uppercase tracking-wider font-sans">Active RM Stocks (คลังคุมร้อยละ)</p>
-                      <p className="text-2xl font-extrabold font-mono tracking-tight text-white leading-none">{unrestrictedStockPercent}% Quality OK</p>
-                      <p className="text-[10px] text-green-100 bg-white/15 px-1.5 py-0.5 rounded-md inline-block font-bold">FEFO Auto-Suggester ON</p>
+                      <div className="flex items-baseline gap-0.5">
+                        <span className="text-3xl font-black font-mono tracking-tight text-white leading-none">
+                          {unrestrictedStockPercent}%
+                        </span>
+                      </div>
+                      <p className="text-xs font-medium text-white/95 mt-1.5 font-sans">Bounce Rate</p>
                     </div>
-                    <Layers className="h-14 w-14 absolute right-2 top-2 text-white/10 group-hover:scale-110 transition-all duration-200" />
+                    <BarChart3 className="h-16 w-16 absolute right-2.5 top-2.5 text-black/15 pointer-events-none group-hover:scale-110 transition-transform duration-200" />
                   </div>
                   <button 
                     onClick={() => {
                       navigateTo('warehouse');
-                      addToast("สลับสถานีงาน ไปที่ 'คลังควบคุมระบุล็อต FEFO (WMS)'", "info");
+                      addToast("ตรวจสอบสถานะคลังควบคุมระบุล็อต FEFO (WMS)", "info");
                     }}
-                    className="w-full bg-black/15 hover:bg-black/35 text-white/95 text-[10px] py-2 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100"
+                    className="w-full bg-black/15 hover:bg-black/25 text-white/95 text-[10.5px] py-1.5 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100 cursor-pointer"
                   >
-                    <span>ส่องยอดคลังระบุล็อต (More info)</span>
-                    <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                    <span>More info</span>
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
 
-                {/* Small Box 3: ส้ม (Orange) - Pending QC */}
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#d35400] to-[#FF9500] text-white shadow-md transition-transform hover:scale-[1.01] flex flex-col justify-between h-36 group">
+                {/* 3. Yellow Box: User Registrations */}
+                <div className="relative overflow-hidden rounded-md bg-[#ffc107] text-[#212529] shadow-sm flex flex-col justify-between h-[130px] group transition-all hover:translate-y-[-2px]">
                   <div className="p-4 flex justify-between items-start">
                     <div className="space-y-1">
-                      <p className="text-white/80 text-[10.5px] font-extrabold uppercase tracking-wider font-sans">Pending QC (พิจารณากักกัน)</p>
-                      <p className="text-2xl font-extrabold font-mono tracking-tight text-white leading-none">
-                        {dbState.qcInspections?.filter((q: any) => q.status === 'Pending').length || 1} Batches
+                      <p className="text-3xl font-black font-mono tracking-tight text-[#212529] leading-none">
+                        {totalEmployees || 44}
                       </p>
-                      <p className="text-[10px] text-orange-100 bg-white/15 px-1.5 py-0.5 rounded-md inline-block font-bold">⚠️ Quarantine Checked</p>
+                      <p className="text-xs font-bold text-[#212529]/95 mt-1.5 font-sans">User Registrations</p>
                     </div>
-                    <Beaker className="h-14 w-14 absolute right-2 top-2 text-white/10 group-hover:scale-110 transition-all duration-200" />
+                    <UserPlus className="h-16 w-16 absolute right-2.5 top-2.5 text-black/10 pointer-events-none group-hover:scale-110 transition-transform duration-200" />
                   </div>
                   <button 
                     onClick={() => {
-                      navigateTo('qc');
-                      addToast("สลับสถานีงาน ไปที่ 'วิเคราะห์ส่องสิ่งปนเปื้อน (QC)'", "info");
+                      navigateTo('hr');
+                      addToast("เปิดหน้างานพนักงานและสิทธิ์ผู้ใช้งาน", "info");
                     }}
-                    className="w-full bg-black/15 hover:bg-black/35 text-white/95 text-[10px] py-2 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100"
+                    className="w-full bg-black/10 hover:bg-black/15 text-[#212529]/95 text-[10.5px] py-1.5 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100 cursor-pointer"
                   >
-                    <span>เปิดชุดวิเคราะห์แลป (More info)</span>
-                    <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                    <span>More info</span>
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
 
-                {/* Small Box 4: ฟ้า-เขียว - Machine OEE */}
-                <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#0d9488] to-[#17a2b8] text-white shadow-md transition-transform hover:scale-[1.01] flex flex-col justify-between h-36 group">
+                {/* 4. Red Box: Unique Visitors */}
+                <div className="relative overflow-hidden rounded-md bg-[#dc3545] text-white shadow-sm flex flex-col justify-between h-[130px] group transition-all hover:translate-y-[-2px]">
                   <div className="p-4 flex justify-between items-start">
                     <div className="space-y-1">
-                      <p className="text-white/80 text-[10.5px] font-extrabold uppercase tracking-wider font-sans">Plant OEE (ประสิทธิภาพจักร)</p>
-                      <p className="text-2xl font-extrabold font-mono tracking-tight text-white leading-none">86.2%</p>
-                      <p className="text-[10px] text-teal-100 bg-white/15 px-1.5 py-0.5 rounded-md inline-block font-bold font-mono">✓ World-class standard</p>
+                      <p className="text-3xl font-black font-mono tracking-tight text-white leading-none">
+                        {dbState.machines?.length || 65}
+                      </p>
+                      <p className="text-xs font-medium text-white/95 mt-1.5 font-sans">Unique Visitors</p>
                     </div>
-                    <Wrench className="h-14 w-14 absolute right-2 top-2 text-white/10 group-hover:scale-110 transition-all duration-200" />
+                    <Globe2 className="h-16 w-16 absolute right-2.5 top-2.5 text-black/15 pointer-events-none group-hover:scale-110 transition-transform duration-200" />
                   </div>
                   <button 
                     onClick={() => {
                       navigateTo('maintenance');
-                      addToast("สลับสถานีงาน ไปที่ 'ตารางป้องกันบำรุงกวน (PM)'", "info");
+                      addToast("เปิดตรวจสอบเครื่องจักรสูตรผสม (OEE / PM)", "info");
                     }}
-                    className="w-full bg-black/15 hover:bg-black/35 text-white/95 text-[10px] py-2 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100"
+                    className="w-full bg-black/15 hover:bg-black/25 text-white/95 text-[10.5px] py-1.5 text-center font-bold tracking-wide flex items-center justify-center gap-1 transition-all duration-100 cursor-pointer"
                   >
-                    <span>เปิดหน้าบำรุงกวนป้องกัน (More info)</span>
-                    <ChevronRight className="h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                    <span>More info</span>
+                    <ChevronRight className="h-3 w-3" />
                   </button>
                 </div>
+
               </div>
 
-              {/* Graphical Charts and Alerts */}
+              {/* Grid Section 1: Sales Value Area Chart & Map Panel */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Area Chart Box (Col span-2) */}
+                <div className={`lg:col-span-2 rounded-lg border transition-all duration-150 flex flex-col ${
+                  isDarkMode ? 'bg-[#15192c] border-[#252a42]' : 'bg-white border-[#E5E5EA] shadow-xs'
+                }`}>
+                  {/* Card Header */}
+                  <div className="flex justify-between items-center px-4 py-3 border-b border-slate-200/90 dark:border-slate-800">
+                    <h3 className={`font-medium text-sm font-sans flex items-center gap-1.5 ${
+                      isDarkMode ? 'text-slate-100' : 'text-slate-900'
+                    }`}>
+                      Sales Value
+                    </h3>
+                  </div>
+                  
+                  {/* Chart Container */}
+                  <div className="p-5 flex-1">
+                    <div className="h-[275px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart 
+                          data={[
+                            { name: '09 Jan', visitors: 64, sales: 26 },
+                            { name: '06 Feb', visitors: 61, sales: 40 },
+                            { name: '06 Mar', visitors: 78, sales: 30 },
+                            { name: '03 Apr', visitors: 79, sales: 21 },
+                            { name: '01 May', visitors: 60, sales: 82 },
+                            { name: '29 May', visitors: 58, sales: 50 },
+                            { name: '26 Jun', visitors: 62, sales: 80 }
+                          ]}
+                          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient id="colorSalesLine" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#0d6efd" stopOpacity={0.25}/>
+                              <stop offset="95%" stopColor="#0d6efd" stopOpacity={0}/>
+                            </linearGradient>
+                            <linearGradient id="colorVisitorsLine" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#20c997" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="#20c997" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis dataKey="name" stroke={isDarkMode ? "#cbd5e1" : "#86868B"} fontSize={10} tickLine={false} axisLine={false} />
+                          <YAxis stroke={isDarkMode ? "#cbd5e1" : "#86868B"} fontSize={10} tickLine={false} axisLine={false} />
+                          <Tooltip contentStyle={isDarkMode ? { backgroundColor: '#1e293b', borderColor: '#475569', color: '#fff' } : undefined} />
+                          <Area type="monotone" dataKey="visitors" stroke="#20c997" strokeWidth={2.5} fill="url(#colorVisitorsLine)" name="Bounce Rate / ความคงคลัง (visitors)" />
+                          <Area type="monotone" dataKey="sales" stroke="#0d6efd" strokeWidth={2.5} fill="url(#colorSalesLine)" name="ยอดขายรวม (sales)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right Map Widget (Col span-1) - Dynamic Blue Style as AdminLTE4 */}
+                <div className="rounded-lg bg-[#0d6efd] text-white shadow-md flex flex-col justify-between max-h-[385px] overflow-hidden">
+                  
+                  {/* Widget Header */}
+                  <div className="flex justify-between items-center px-4 py-3 border-b border-white/10">
+                    <h3 className="font-medium text-sm flex items-center gap-1.5 text-white">
+                      Sales Value
+                    </h3>
+                    <div className="flex items-center gap-1.5 opacity-80 text-white text-xs">
+                      <button onClick={() => addToast("ย่อโมดูลแผนดินจำลองเรียบร้อย", "info")} className="hover:text-amber-300">
+                        <Minimize className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Widget Body World Map Silhouette SVG & Glow Targets */}
+                  <div className="p-4 flex-1 flex flex-col justify-center items-center relative overflow-hidden">
+                    <svg viewBox="0 0 1000 450" className="w-full opacity-35 text-white max-h-[160px]" fill="currentColor">
+                      <path d="M150,150 C230,120 280,180 320,130 C360,110 400,160 450,140 C500,100 550,140 600,110 C650,80 720,120 780,90 C840,70 900,120 950,100 L950,400 C900,420 850,380 800,410 C750,430 700,390 650,410 C600,380 550,420 500,390 C450,410 400,370 350,390 C300,350 250,400 200,380 L150,400 Z" />
+                      <circle cx="280" cy="140" r="14" fill="#ffc107" className="animate-ping" />
+                      <circle cx="280" cy="140" r="10" fill="#ffc107" />
+                      <circle cx="580" cy="150" r="16" fill="#20c997" className="animate-ping" />
+                      <circle cx="580" cy="150" r="12" fill="#20c997" />
+                      <circle cx="750" cy="220" r="14" fill="#ffffff" className="animate-ping" />
+                      <circle cx="750" cy="220" r="10" fill="#ffffff" />
+                    </svg>
+
+                    <div className="absolute top-2 left-4 text-[10px] font-mono tracking-wider font-extrabold bg-black/25 px-2 py-0.5 rounded-md">
+                      ASEAN OPERATIONS HUB ONLINE
+                    </div>
+                  </div>
+
+                  {/* Mini-Sparkline stats below map container */}
+                  <div className="grid grid-cols-3 border-t border-white/15 bg-black/10 py-3 text-center text-xs">
+                    <div className="border-r border-white/10 flex flex-col items-center">
+                      <div className="h-6 w-12 opacity-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={[{v:10},{v:40},{v:22},{v:35},{v:50}]}>
+                            <Area type="monotone" dataKey="v" stroke="#ffffff" strokeWidth={1} fill="#ffffff" fillOpacity={0.2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <span className="text-[10px] opacity-75 mt-1 block">Visitors</span>
+                      <strong className="text-sm">8.3K</strong>
+                    </div>
+
+                    <div className="border-r border-white/10 flex flex-col items-center">
+                      <div className="h-6 w-12 opacity-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={[{v:30},{v:15},{v:42},{v:20},{v:60}]}>
+                            <Area type="monotone" dataKey="v" stroke="#ffffff" strokeWidth={1} fill="#ffffff" fillOpacity={0.2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <span className="text-[10px] opacity-75 mt-1 block">Online</span>
+                      <strong className="text-sm">76.3%</strong>
+                    </div>
+
+                    <div className="flex flex-col items-center">
+                      <div className="h-6 w-12 opacity-80">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={[{v:12},{v:25},{v:18},{v:55},{v:40}]}>
+                            <Area type="monotone" dataKey="v" stroke="#ffffff" strokeWidth={1} fill="#ffffff" fillOpacity={0.2} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <span className="text-[10px] opacity-75 mt-1 block">Sales</span>
+                      <strong className="text-sm">90.2%</strong>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Grid Section 2: Direct Chat & Recent Members */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* Income Statements */}
-                <div className={`p-5 rounded-2xl border transition-colors duration-150 space-y-3 ${
+                {/* 1. Direct Chat Widget */}
+                <div className={`rounded-lg border flex flex-col ${
                   isDarkMode ? 'bg-[#15192c] border-[#252a42]' : 'bg-white border-[#E5E5EA] shadow-xs'
                 }`}>
-                  <h4 className={`font-bold text-xs uppercase tracking-wider ${
-                    isDarkMode ? 'text-slate-205' : 'text-slate-900'
-                  }`}>บัญชีรายละเอียดผลการดำเนินงาน (Accounting Profit Sheet)</h4>
-                  <div className="h-[210px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={revenueExpenseChartData}>
-                        <XAxis dataKey="name" stroke={isDarkMode ? "#cbd5e1" : "#86868B"} fontSize={10} />
-                        <YAxis stroke={isDarkMode ? "#cbd5e1" : "#86868B"} fontSize={10} />
-                        <Tooltip contentStyle={isDarkMode ? { backgroundColor: '#1e293b', borderColor: '#475569', color: '#fff' } : undefined} />
-                        <Area type="monotone" dataKey="GrossRevenues" stroke="#0071E3" fill="#0071E3" fillOpacity={0.15} name="รายรับรวม" />
-                        <Area type="monotone" dataKey="TotalOpex" stroke="#FF9500" fill="#FF9500" fillOpacity={0.1} name="ต้นทุน" />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                  {/* Card Header */}
+                  <div className="flex justify-between items-center px-4 py-3 border-b border-slate-200/90 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <h3 className={`font-semibold text-sm font-sans ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        Direct Chat
+                      </h3>
+                      <span className="bg-[#0071E3] text-white font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block">
+                        {chatMessages.length}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 opacity-75">
+                      <button onClick={() => addToast("Direct Chat v4 minimization applied", "info")} className={`p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 ${isDarkMode ? 'text-slate-400' : 'text-slate-655'}`}>
+                        <Minimize className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Card Body (Messages List) */}
+                  <div className="p-4 flex-1 h-72 overflow-y-auto space-y-4 font-sans">
+                    {chatMessages.map((msg, i) => {
+                      const isMe = msg.isMe;
+                      return (
+                        <div key={msg.id || i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                          {/* Metadata row */}
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1 max-w-[90%] font-semibold">
+                            <span className={isMe ? 'text-indigo-600 dark:text-indigo-400 order-2' : ''}>{msg.sender}</span>
+                            <span className="text-[9px] text-slate-400 font-normal">{msg.time}</span>
+                          </div>
+
+                          {/* Message bubble */}
+                          <div className={`p-2.5 px-4 rounded-2xl text-xs max-w-[85%] shadow-xs break-words ${
+                            isMe 
+                              ? 'bg-[#0d6efd] text-white rounded-tr-none' 
+                              : isDarkMode 
+                                ? 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700/60' 
+                                : 'bg-[#e9ecef] text-slate-800 rounded-tl-none'
+                          }`}>
+                            {msg.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Card Footer (Action Message Form Input) */}
+                  <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+                    <form onSubmit={handleSendChatMessage} className="flex gap-2">
+                      <input 
+                        type="text" 
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder="Type Message..."
+                        className={`flex-1 p-2 px-3 border rounded text-xs outline-none transition-all ${
+                          isDarkMode 
+                            ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' 
+                            : 'bg-white border-slate-300 text-slate-800 focus:border-[#0d6efd]'
+                        }`}
+                      />
+                      <button 
+                        type="submit"
+                        className="p-2 px-4 bg-[#0d6efd] text-white text-xs font-bold rounded hover:bg-[#0c61e0] transition-colors flex items-center gap-1 active:scale-95 cursor-pointer"
+                      >
+                        <Send className="h-3 w-3" /> Send
+                      </button>
+                    </form>
                   </div>
                 </div>
 
-                {/* Live Machines MTBF states */}
-                <div className={`p-5 rounded-2xl border transition-colors duration-150 space-y-3 ${
+                {/* 2. Recent Logs / Members List Widget */}
+                <div className={`rounded-lg border flex flex-col justify-between ${
                   isDarkMode ? 'bg-[#15192c] border-[#252a42]' : 'bg-white border-[#E5E5EA] shadow-xs'
                 }`}>
-                  <h4 className={`font-bold text-slate-900 text-xs uppercase tracking-wider ${
-                    isDarkMode ? 'text-slate-205' : 'text-slate-900'
-                  }`}>ประสิทธิภาพชั่วโมงการทนกวนเครื่อง Reactor (Machine MTBF Hours)</h4>
-                  <div className="h-[210px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart data={machineryChartData}>
-                        <XAxis dataKey="name" stroke={isDarkMode ? "#cbd5e1" : "#86868B"} fontSize={9} />
-                        <YAxis stroke={isDarkMode ? "#cbd5e1" : "#86868B"} fontSize={10} />
-                        <Tooltip contentStyle={isDarkMode ? { backgroundColor: '#1e293b', borderColor: '#475569', color: '#fff' } : undefined} />
-                        <Bar dataKey="MTBF" fill="#0071E3" radius={[4, 4, 0, 0]} name="ชั่วโมงทนทานเฉลี่ย" />
-                      </RechartsBarChart>
-                    </ResponsiveContainer>
+                  {/* Card Header */}
+                  <div className="flex justify-between items-center px-4 py-3 border-b border-slate-200/90 dark:border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <h3 className={`font-semibold text-sm font-sans ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        Recent Activity
+                      </h3>
+                      <span className="bg-emerald-600 text-white font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block animate-pulse">
+                        8 Active members
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Card Body - list of active members or logs */}
+                  <div className="p-4 flex-1 space-y-4">
+                    {[
+                      { name: 'Alexander Pierce', task: 'Created Sales Job Ticket #JOB-2026-039', time: '2:00 pm', status: 'Approved', statusColor: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-850 dark:text-emerald-300' },
+                      { name: 'Sarah Bullock', task: 'Released manufacturing order #MO-00109 for Reactor A', time: '2:05 pm', status: 'Success', statusColor: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-850 dark:text-indigo-300' },
+                      { name: 'Icie Reynolds', task: 'Verified chemical FEFO stock level for essential perfume oils', time: '3:30 pm', status: 'Online', statusColor: 'bg-blue-100 text-blue-800 dark:bg-blue-850 dark:text-blue-300' },
+                      { name: 'Laboratory Chief', task: 'Approved COA analysis and quality clearance reports', time: '4:15 pm', status: 'Cleared', statusColor: 'bg-purple-100 text-purple-800 dark:bg-purple-850 dark:text-purple-300' }
+                    ].map((act, idx) => (
+                      <div key={idx} className="flex items-start gap-3.5 pb-2.5 last:pb-0 border-b border-dashed border-slate-100 dark:border-slate-850 last:border-0">
+                        {/* Avatar */}
+                        <div className="h-9 w-9 shrink-0 rounded-full bg-gradient-to-tr from-indigo-500 to-sky-500 flex items-center justify-center text-white font-extrabold text-xs">
+                          {act.name.split(' ').map(n=>n[0]).join('')}
+                        </div>
+                        {/* Detail */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-baseline gap-1.5">
+                            <h4 className={`text-xs font-bold truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                              {act.name}
+                            </h4>
+                            <span className="text-[9px] font-medium text-slate-400 shrink-0 font-mono">
+                              {act.time}
+                            </span>
+                          </div>
+                          <p className={`text-[11px] mt-0.5 leading-snug line-clamp-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                            {act.task}
+                          </p>
+                        </div>
+                        {/* Status badge */}
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${act.statusColor}`}>
+                          {act.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-3 border-t border-slate-100 dark:border-slate-800 text-center">
+                    <button 
+                      onClick={() => {
+                        navigateTo('reports');
+                        addToast("เปิดรายงานตรวจสอบประวัติทั้งระบบเรียบร้อย", "info");
+                      }}
+                      className="text-xs text-[#0d6efd] font-bold hover:underline"
+                    >
+                      View All Activity Logs
+                    </button>
                   </div>
                 </div>
 
               </div>
-
-
 
             </div>
           )}

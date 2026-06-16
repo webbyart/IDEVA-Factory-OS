@@ -81,7 +81,6 @@ function initDatabaseAndConfig() {
 }
 
 async function loadActiveDatabase() {
-  initDatabaseAndConfig();
   
   SUPABASE_URL = dbConfig.supabaseUrl || "";
   SUPABASE_KEY = dbConfig.supabaseKey || "";
@@ -2281,7 +2280,11 @@ app.post("/api/db/config", async (req, res) => {
     dbConfig = newConfig;
     
     // Persist configurations physically
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(dbConfig, null, 2), "utf-8");
+    try {
+      fs.writeFileSync(CONFIG_FILE, JSON.stringify(dbConfig, null, 2), "utf-8");
+    } catch (fsErr: any) {
+      console.warn("[PERSISTENCE WARNING] Could not write db_config.json to filesystem (this is expected on some read-only / serverless container overlays):", fsErr.message);
+    }
     
     logSqlQuery("DB SWITCH", `SYSTEM RECONFIGURED - CHANGED ACTIVE DRIVER VALUE TO: ${dbConfig.type.toUpperCase()}`);
     
@@ -2367,6 +2370,9 @@ app.post("/api/db/init-schema", async (req, res) => {
 // ----------------------------------------------------
 
 async function startServer() {
+  // Load local configurations and memory database cleanly on startup
+  initDatabaseAndConfig();
+
   // Boot dynamic responsive database driver (Localhost/XAMPP/Appserv/Oracle/Postgres)
   await loadActiveDatabase();
 
