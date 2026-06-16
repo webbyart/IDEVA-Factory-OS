@@ -303,7 +303,7 @@ async function syncCollectionToSupabase(stateKey: string, items: any[]) {
     if (!res.ok) {
       const errText = await res.text();
       if (errText.includes("row-level security") || res.status === 401 || errText.includes("violates row-level security policy")) {
-        console.warn(`[SUPABASE RLS WARNING] Table '${dbTable}' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen to grant write permissions.`);
+        console.log(`[SUPABASE SYNC RLS NOTICE] Table '${dbTable}' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen to grant write permissions.`);
       } else {
         console.error(`[SUPABASE SYNC ERROR] Failed to sync ${stateKey} to ${dbTable}:`, res.status, errText);
       }
@@ -342,7 +342,7 @@ async function syncFormulasToSupabase(formulas: any[]) {
       if (!resHeader.ok) {
         const errText = await resHeader.text();
         if (errText.includes("row-level security") || resHeader.status === 401 || errText.includes("violates row-level security policy")) {
-          console.warn(`[SUPABASE RLS WARNING] Table 'formula_headers' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen.`);
+          console.log(`[SUPABASE SYNC RLS NOTICE] Table 'formula_headers' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen.`);
         } else {
           console.error(`[SUPABASE FORMULA SYNC] Failed to sync formula_headers:`, resHeader.status, errText);
         }
@@ -387,7 +387,7 @@ async function syncFormulasToSupabase(formulas: any[]) {
       if (!resDetails.ok) {
         const errText = await resDetails.text();
         if (errText.includes("row-level security") || resDetails.status === 401 || errText.includes("violates row-level security policy")) {
-          console.warn(`[SUPABASE RLS WARNING] Table 'formula_details' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen.`);
+          console.log(`[SUPABASE SYNC RLS NOTICE] Table 'formula_details' failed to sync due to Row Level Security (RLS) policies in Supabase. Copy & run the ALTER TABLE sql script in 'Developer OS' screen.`);
         } else {
           console.error(`[SUPABASE DETAIL SYNC] Failed to sync formula_details:`, resDetails.status, errText);
         }
@@ -520,6 +520,9 @@ async function loadFromSupabase() {
     
     const logTable = await fetchTableDirect("audit_logs");
     if (logTable && logTable.length > 0) dbState.auditLogs = toCamel(logTable);
+
+    const quotesTable = await fetchTableDirect("quotes");
+    if (quotesTable && quotesTable.length > 0) dbState.quotes = toCamel(quotesTable);
 
     supabaseConnected = true;
     console.log("[SUPABASE SUCCESS] Loaded 100% direct SQL database tables cleanly!");

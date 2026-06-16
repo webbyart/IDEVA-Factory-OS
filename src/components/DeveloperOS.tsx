@@ -471,7 +471,8 @@ export default function DeveloperOS({ onNotify }: DeveloperOSProps) {
                           `ALTER TABLE public.payroll_periods DISABLE ROW LEVEL SECURITY;\n` +
                           `ALTER TABLE public.payslips DISABLE ROW LEVEL SECURITY;\n` +
                           `ALTER TABLE public.account_transactions DISABLE ROW LEVEL SECURITY;\n` +
-                          `ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;`;
+                          `ALTER TABLE public.audit_logs DISABLE ROW LEVEL SECURITY;\n` +
+                          `ALTER TABLE public.quotes DISABLE ROW LEVEL SECURITY;`;
                         navigator.clipboard.writeText(rlsBypassSql);
                         onNotify("คัดลอกคำสั่งปลดบล็อก RLS เรียบร้อย! สำหรับนำไปรันใน SQL Editor ของ Supabase เพื่อลดข้อขัดแย้งของระบบสำเร็จ", "info");
                       }}

@@ -10,7 +10,8 @@ import {
   Clipboard, FileSpreadsheet, Kanban, Database, FileText, Search, Printer, 
   Upload, Tag, LayoutDashboard, ExternalLink, Minimize2, PlusCircle,
   Sun, Moon, Menu, ChevronDown, Home,
-  ShoppingBag, BarChart3, UserPlus, Globe2, Send, Minimize, Maximize2, MessageCircle
+  ShoppingBag, BarChart3, UserPlus, Globe2, Send, Minimize, Maximize2, MessageCircle,
+  BookOpen, Palette
 } from 'lucide-react';
 
 // Subcomponents import
@@ -23,6 +24,7 @@ import PerfumeFormulaOS from './components/PerfumeFormulaOS';
 import ChemicalStockOS from './components/ChemicalStockOS';
 import GMPHubOS from './components/GMPHubOS';
 import SalesProdWorkflowOS from './components/SalesProdWorkflowOS';
+import UserGuideOS from './components/UserGuideOS';
 
 // New high-fidelity modular subcomponents
 import WarehouseOS from './components/WarehouseOS';
@@ -171,6 +173,14 @@ export default function App() {
   });
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
 
+  const [colorTheme, setColorTheme] = useState<'blue' | 'green' | 'yellow'>(() => {
+    return (localStorage.getItem('ideva_color_theme') as any) || 'blue';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('ideva_color_theme', colorTheme);
+  }, [colorTheme]);
+
   useEffect(() => {
     localStorage.setItem('ideva_theme_mode', isDarkMode ? 'dark' : 'light');
     const root = document.getElementById('ideva-applet-root');
@@ -312,6 +322,7 @@ export default function App() {
     { id: 'quality_and_traceability', label: '6. ตรวจแล็บคุณภาพและสืบกลับ (QA/QC)', icon: ShieldCheck, category: 'QUALITY & SAFETY' },
     { id: 'maintenance_and_compliance', label: '7. ตารางซ่อมบำรุงและ SOP อ.ย. (PM & Regulation)', icon: Wrench, category: 'REPAIR & COMPLIANCE' },
     { id: 'system_and_reports', label: '8. รายงานสรุปและสิทธิ์ผู้ใช้งาน (Admin & Reports)', icon: Settings, category: 'ANALYTICS & SYSTEMS' },
+    { id: 'user_guide', label: '10. คู่มือใช้งานและคำแนะนำระบบ (SOP & Manual)', icon: BookOpen, category: 'ANALYTICS & SYSTEMS' },
     { id: 'database_setup', label: '9. ตั้งค่า ฐานข้อมูล (Database Engine)', icon: Database, category: 'ANALYTICS & SYSTEMS' }
   ];
 
@@ -324,6 +335,32 @@ export default function App() {
   return (
     <div className={`flex min-h-screen antialiased transition-colors duration-150 ${isDarkMode ? 'bg-[#0d0f17] text-slate-100' : 'bg-[#f1f5f9] text-[#1e293b]'}`} id="ideva-applet-root">
       
+      {/* Dynamic Theme Color Overrides style tag */}
+      <style>{`
+        ${colorTheme === 'green' ? `
+          /* Green light theme overrides */
+          .bg-indigo-600, .bg-[#0071E3], .bg-indigo-650 { background-color: #059669 !important; }
+          .text-indigo-600, .text-[#0071E3] { color: #059669 !important; }
+          .border-indigo-600, .border-[#0071E3], .border-indigo-400, .border-indigo-600\\/30 { border-color: #059669 !important; }
+          .hover\\:bg-indigo-700:hover, .hover\\:bg-indigo-750:hover, .hover\\:bg-\\[\\#0061c0\\]:hover, .hover\\:bg-indigo-650:hover, .hover\\:bg-indigo-600\\/90:hover { background-color: #047857 !important; }
+          .bg-indigo-50\\/40, .bg-indigo-50, .bg-indigo-50\\/30 { background-color: #ecfdf5 !important; }
+          .text-indigo-805, .text-indigo-800 { color: #047857 !important; }
+          .border-indigo-100 { border-color: #a7f3d0 !important; }
+          .text-indigo-600 { color: #059669 !important; }
+        ` : ''}
+        ${colorTheme === 'yellow' ? `
+          /* Yellow light theme overrides */
+          .bg-indigo-600, .bg-[#0071E3], .bg-indigo-650 { background-color: #d97706 !important; }
+          .text-indigo-600, .text-[#0071E3] { color: #d97706 !important; }
+          .border-indigo-600, .border-[#0071E3], .border-indigo-400, .border-indigo-600\\/30 { border-color: #d97706 !important; }
+          .hover\\:bg-indigo-700:hover, .hover\\:bg-indigo-750:hover, .hover\\:bg-\\[\\#0061c0\\]:hover, .hover\\:bg-indigo-650:hover, .hover\\:bg-indigo-600\\/90:hover { background-color: #b45309 !important; }
+          .bg-indigo-50\\/40, .bg-indigo-50, .bg-indigo-50\\/30 { background-color: #fffbeb !important; }
+          .text-indigo-805, .text-indigo-800 { color: #b45309 !important; }
+          .border-indigo-100 { border-color: #fde68a !important; }
+          .text-indigo-600 { color: #d97706 !important; }
+        ` : ''}
+      `}</style>
+
       {/* Drawer backdrop for mobile when sidebar is open */}
       {sidebarOpen && (
         <div 
@@ -521,7 +558,28 @@ export default function App() {
           </div>
 
           {/* Right-aligned utilities (Interactive switches, Dark mode, User status) */}
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3.5">
+            
+            {/* Dynamic Color Palette selector */}
+            <div className={`flex items-center gap-1.5 px-2 py-1.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#1c223c] border-[#2f3863]' : 'bg-neutral-50 border-[#E5E5EA]'
+            }`}>
+              <Palette className="h-4 w-4 text-pink-500" />
+              <select
+                className={`text-[11px] bg-transparent border-0 outline-none cursor-pointer font-bold ${
+                  isDarkMode ? 'text-white' : 'text-slate-800'
+                }`}
+                value={colorTheme}
+                onChange={(e) => {
+                  setColorTheme(e.target.value as any);
+                  addToast(`เปลี่ยนสถานะแบบสีหลักระบบเป็น: ${e.target.value === 'green' ? 'เขียวอ่อน' : e.target.value === 'yellow' ? 'เหลืองอ่อน' : 'ฟ้าอ่อน'}`, "info");
+                }}
+              >
+                <option value="blue" className={isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-850'}>🔵 ฟ้าอ่อน</option>
+                <option value="green" className={isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-850'}>🟢 เขียวอ่อน</option>
+                <option value="yellow" className={isDarkMode ? 'bg-slate-900 text-white' : 'bg-white text-slate-850'}>🟡 เหลืองอ่อน</option>
+              </select>
+            </div>
             
             {/* Light / Dark Mode Toggle button */}
             <button
@@ -880,78 +938,60 @@ export default function App() {
 
               </div>
 
-              {/* Grid Section 2: Direct Chat & Recent Members */}
+              {/* Grid Section 2: Quick Recommendations & Recent Members */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                {/* 1. Direct Chat Widget */}
-                <div className={`rounded-lg border flex flex-col ${
+                {/* 1. Practical Tips Widget (Replacing Direct Chat) */}
+                <div className={`rounded-lg border flex flex-col justify-between ${
                   isDarkMode ? 'bg-[#15192c] border-[#252a42]' : 'bg-white border-[#E5E5EA] shadow-xs'
                 }`}>
                   {/* Card Header */}
                   <div className="flex justify-between items-center px-4 py-3 border-b border-slate-200/90 dark:border-slate-800">
                     <div className="flex items-center gap-2">
                       <h3 className={`font-semibold text-sm font-sans ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                        Direct Chat
+                        💡 ข้อเสนอแนะมาตรฐานผลิตเครื่องหอม (GMP Tips)
                       </h3>
-                      <span className="bg-[#0071E3] text-white font-mono text-[9px] font-black px-1.5 py-0.5 rounded-full inline-block">
-                        {chatMessages.length}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5 opacity-75">
-                      <button onClick={() => addToast("Direct Chat v4 minimization applied", "info")} className={`p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 ${isDarkMode ? 'text-slate-400' : 'text-slate-655'}`}>
-                        <Minimize className="h-3.5 w-3.5" />
-                      </button>
+                    <span className="bg-emerald-500 text-white font-mono text-[9px] font-black px-1.5 py-0.5 rounded inline-block animate-pulse">
+                      ISO 22716
+                    </span>
+                  </div>
+
+                  {/* Card Body */}
+                  <div className="p-4 flex-1 space-y-4 font-sans text-xs">
+                    <div className="p-3 rounded-lg bg-indigo-50/50 dark:bg-slate-800/60 border border-indigo-100/30">
+                      <strong className="text-indigo-600 dark:text-teal-400 block mb-1">🧼 การรักษาสุขอนามัยแรกเข้า (Personal Sanitization)</strong>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px]">
+                        ผู้เปิดงานคีย์และฝ่ายกวนผสมทุกท่าน ต้องสวมชุดกาวน์ที่ผ่านการซักฆ่าเชื้อโรค ล้างมือด้วยแอลกอฮอล์ 75% และเดินผ่านอุโมงค์ลมสลัดฝุ่น (Air Shower) ไม่ต่ำกว่า 15 วินาที เพื่อรักษาระดับฝุ่นละอองในคลีนรูมระดับ ISO Class 7
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-amber-50/40 dark:bg-amber-950/20 border border-amber-200/30">
+                      <strong className="text-amber-600 block mb-1">⏱️ การคํานวณสับสิทธิ์ FEFO คลังวัตถุดิบ</strong>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px]">
+                        ก่อนเปิดใช้หัวน้ำมันพรีเมียมจากคีย์ถัง ต้องตรวจสอบพลาสติกซีลและการันตี GMP COA เผื่อเกิดการทำลายสารเคมีจากความชื้น ให้ลำเลียงตามวันหมดอายุต่ำสุด (FEFO) ออกไปผสมก่อนเสมอเพื่อป้องกันสต็อกขาดทุน
+                      </p>
+                    </div>
+
+                    <div className="p-3 rounded-lg bg-emerald-50/40 dark:bg-emerald-950/20 border border-emerald-200/30">
+                      <strong className="text-emerald-600 block mb-1">📝 ความสอดคล้องใบเสนอราคา (BMR Alignment)</strong>
+                      <p className="text-slate-500 dark:text-slate-400 leading-relaxed text-[11px]">
+                        เมื่อมีการตกลงอนุมัติใบเสนอราคาผ่าน Supabase Quotes แล้ว ข้อมูลส่วนประกอบน้ำหอม SKU สำคัญจะถูกล็อกรหัสเพื่อเตรียมบรรจุลงหม้อกวนโดยอัตโนมัติ ห้ามแก้ไขนอกรอบเว้นแต่มีใบขออนุมัติจาก QC
+                      </p>
                     </div>
                   </div>
 
-                  {/* Card Body (Messages List) */}
-                  <div className="p-4 flex-1 h-72 overflow-y-auto space-y-4 font-sans">
-                    {chatMessages.map((msg, i) => {
-                      const isMe = msg.isMe;
-                      return (
-                        <div key={msg.id || i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                          {/* Metadata row */}
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 mb-1 max-w-[90%] font-semibold">
-                            <span className={isMe ? 'text-indigo-600 dark:text-indigo-400 order-2' : ''}>{msg.sender}</span>
-                            <span className="text-[9px] text-slate-400 font-normal">{msg.time}</span>
-                          </div>
-
-                          {/* Message bubble */}
-                          <div className={`p-2.5 px-4 rounded-2xl text-xs max-w-[85%] shadow-xs break-words ${
-                            isMe 
-                              ? 'bg-[#0d6efd] text-white rounded-tr-none' 
-                              : isDarkMode 
-                                ? 'bg-slate-800 text-slate-100 rounded-tl-none border border-slate-700/60' 
-                                : 'bg-[#e9ecef] text-slate-800 rounded-tl-none'
-                          }`}>
-                            {msg.text}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Card Footer (Action Message Form Input) */}
-                  <div className="p-3 border-t border-slate-100 dark:border-slate-800">
-                    <form onSubmit={handleSendChatMessage} className="flex gap-2">
-                      <input 
-                        type="text" 
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Type Message..."
-                        className={`flex-1 p-2 px-3 border rounded text-xs outline-none transition-all ${
-                          isDarkMode 
-                            ? 'bg-slate-800 border-slate-700 text-white focus:border-indigo-500' 
-                            : 'bg-white border-slate-300 text-slate-800 focus:border-[#0d6efd]'
-                        }`}
-                      />
-                      <button 
-                        type="submit"
-                        className="p-2 px-4 bg-[#0d6efd] text-white text-xs font-bold rounded hover:bg-[#0c61e0] transition-colors flex items-center gap-1 active:scale-95 cursor-pointer"
-                      >
-                        <Send className="h-3 w-3" /> Send
-                      </button>
-                    </form>
+                  {/* Card Footer with Link */}
+                  <div className="p-3 border-t border-slate-100 dark:border-slate-800 text-center">
+                    <button 
+                      onClick={() => {
+                        setActiveTab('user_guide');
+                        addToast("เปิดอ่านคู่มือและแผนกกฎระเบียบของระบบสมบูรณ์", "info");
+                      }}
+                      className="text-xs text-[#0d6efd] font-bold hover:underline"
+                    >
+                      เปิดอ่านคู่มือการดำเนินงานทั้งหมด (SOP Handbook &rarr;)
+                    </button>
                   </div>
                 </div>
 
@@ -1418,6 +1458,11 @@ export default function App() {
           )}
 
 
+
+          {/* User Manual and Guidelines Tab */}
+          {activeTab === 'user_guide' && (
+            <UserGuideOS isDarkMode={isDarkMode} />
+          )}
 
           {/* Database Setup Workstation Tab */}
           {activeTab === 'database_setup' && (
